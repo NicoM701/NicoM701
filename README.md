@@ -21,3 +21,5 @@
 ![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)
 ![Bitbucket](https://img.shields.io/badge/bitbucket-%230052CC.svg?style=for-the-badge&logo=bitbucket&logoColor=white)
 
+
+![Jira](https://img.shields.io/badge/jira-                                                                                                                                                                                                                                0X0P+00FFF.svg?style=for-the-badge&logo=jira&logoColor=white)
