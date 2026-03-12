@@ -21,6 +21,3 @@
 ![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)
 ![Bitbucket](https://img.shields.io/badge/bitbucket-%230052CC.svg?style=for-the-badge&logo=bitbucket&logoColor=white)
 
-## 📊 Feel free to add on Discord:
-![(https://discord.com/users/321668335311781889)]
-
