@@ -116,6 +116,11 @@
       touch-action: none;
       user-select: none;
       will-change: left, top, transform;
+      opacity: 0;
+    }
+
+    html.stage-ready .moodboard {
+      opacity: 1;
     }
 
     .collage-item {
@@ -1302,6 +1307,7 @@
         document.documentElement.style.setProperty("--stage-scale", camera.scale.toFixed(4));
         board.style.left = `${camera.left}px`;
         board.style.top = `${camera.top}px`;
+        document.documentElement.classList.add("stage-ready");
       };
 
       const fitStage = () => {
