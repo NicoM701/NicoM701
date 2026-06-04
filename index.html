@@ -1114,7 +1114,7 @@
         </div>
       </article>
 
-      <article class="collage-item" data-id="old-nm-logo" data-href="https://discord.com/users/321668335311781889" style="--x: 393.63px; --y: -14.32px; --w: 72px; --r: 8deg; --z: 59;">
+      <article class="collage-item" data-id="old-nm-logo" style="--x: 393.63px; --y: -14.32px; --w: 72px; --r: 8deg; --z: 59;">
         <div class="asset-sticker">
           <img src="assets/old-logo-collage.gif" alt="Animated old Nico logo" draggable="false" />
         </div>
@@ -1177,6 +1177,7 @@
     (() => {
       const STAGE_WIDTH = 1320;
       const STAGE_HEIGHT = 660;
+      const MOBILE_FOCUS_X = 442.88 + 286 / 2;
       const STORAGE_KEY = "draggable-moodboard-layout-v6";
       const board = document.querySelector("#moodboard");
       const resetButton = document.querySelector("#resetBoard");
@@ -1322,7 +1323,7 @@
 
         if (useMobileStage) {
           if (!previous.mobile) {
-            camera.left = (window.innerWidth - STAGE_WIDTH * scale) / 2;
+            camera.left = window.innerWidth / 2 - MOBILE_FOCUS_X * scale;
             camera.top = (window.innerHeight - STAGE_HEIGHT * scale) / 2;
           } else {
             const centerX = (window.innerWidth / 2 - previous.left) / previous.scale;
