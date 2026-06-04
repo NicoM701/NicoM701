@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Draggable Moodboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>nico</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
   <style>
     :root {
@@ -46,6 +46,10 @@
       color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     button,
@@ -111,6 +115,7 @@
       transform-origin: top left;
       touch-action: none;
       user-select: none;
+      will-change: left, top, transform;
     }
 
     .collage-item {
@@ -952,6 +957,25 @@
         animation: none;
       }
     }
+
+    @media (hover: none), (pointer: coarse) {
+      .collage-item {
+        transition: filter 120ms ease;
+      }
+
+      .collage-item:hover {
+        transform: rotate(var(--r));
+        filter: var(--item-shadow);
+      }
+
+      .collage-item.is-dragging {
+        transform: rotate(var(--r)) scale(1.015);
+      }
+
+      .tool-button:hover {
+        transform: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1155,7 +1179,17 @@
       const initial = new Map();
       const alphaHitCanvases = new WeakMap();
       let active = null;
+      let cameraPan = null;
+      const camera = { left: 0, top: 0, scale: 1, mobile: false };
+      const mobileQuery = window.matchMedia("(hover: none), (pointer: coarse), (max-width: 760px)");
+      const titleFrames = ["nico", "Nico", "nIco", "niCo", "nicO", "nico"];
+      let titleFrame = 0;
       let topZ = Math.max(...items.map((item) => Number(getComputedStyle(item).zIndex) || 1));
+
+      window.setInterval(() => {
+        titleFrame = (titleFrame + 1) % titleFrames.length;
+        document.title = titleFrames[titleFrame];
+      }, 650);
 
       const toNumber = (value) => Number.parseFloat(String(value).replace("px", ""));
       const hashId = (value) => {
@@ -1249,16 +1283,86 @@
         item.style.setProperty("--hover-scale", hoverScale.toFixed(3));
       });
 
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const clampCamera = () => {
+        if (!camera.mobile) return;
+        const scaledWidth = STAGE_WIDTH * camera.scale;
+        const scaledHeight = STAGE_HEIGHT * camera.scale;
+        const inset = 72;
+        const minLeft = Math.min(window.innerWidth - scaledWidth - inset, inset);
+        const maxLeft = inset;
+        const minTop = Math.min(window.innerHeight - scaledHeight - inset, inset);
+        const maxTop = inset;
+        camera.left = clamp(camera.left, minLeft, maxLeft);
+        camera.top = clamp(camera.top, minTop, maxTop);
+      };
+
+      const applyCamera = () => {
+        document.documentElement.style.setProperty("--stage-scale", camera.scale.toFixed(4));
+        board.style.left = `${camera.left}px`;
+        board.style.top = `${camera.top}px`;
+      };
+
       const fitStage = () => {
-        const scale = Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT, 1);
-        document.documentElement.style.setProperty("--stage-scale", scale.toFixed(4));
-        board.style.left = `${(window.innerWidth - STAGE_WIDTH * scale) / 2}px`;
-        board.style.top = `${(window.innerHeight - STAGE_HEIGHT * scale) / 2}px`;
+        const useMobileStage = mobileQuery.matches;
+        const previous = { ...camera };
+        const scale = useMobileStage
+          ? clamp(Math.max(window.innerWidth / 760, window.innerHeight / 960), 0.54, 0.84)
+          : Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT, 1);
+
+        camera.mobile = useMobileStage;
+        camera.scale = scale;
+
+        if (useMobileStage) {
+          if (!previous.mobile) {
+            camera.left = (window.innerWidth - STAGE_WIDTH * scale) / 2;
+            camera.top = (window.innerHeight - STAGE_HEIGHT * scale) / 2;
+          } else {
+            const centerX = (window.innerWidth / 2 - previous.left) / previous.scale;
+            const centerY = (window.innerHeight / 2 - previous.top) / previous.scale;
+            camera.left = window.innerWidth / 2 - centerX * scale;
+            camera.top = window.innerHeight / 2 - centerY * scale;
+          }
+          clampCamera();
+          applyCamera();
+          return;
+        }
+
+        camera.left = (window.innerWidth - STAGE_WIDTH * scale) / 2;
+        camera.top = (window.innerHeight - STAGE_HEIGHT * scale) / 2;
+        applyCamera();
+      };
+
+      const panCamera = (deltaX, deltaY) => {
+        if (!camera.mobile) return;
+        camera.left += deltaX;
+        camera.top += deltaY;
+        clampCamera();
+        applyCamera();
+      };
+
+      const startCameraPan = (event) => {
+        if (!camera.mobile) return;
+        cameraPan = {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          clientY: event.clientY
+        };
+        board.setPointerCapture(event.pointerId);
+      };
+
+      const endCameraPan = (event) => {
+        if (!cameraPan || cameraPan.pointerId !== event.pointerId) return false;
+        board.releasePointerCapture(event.pointerId);
+        cameraPan = null;
+        clearAlphaMiss();
+        return true;
       };
 
       const stagePoint = (event) => {
         const rect = board.getBoundingClientRect();
-        const scale = rect.width / STAGE_WIDTH;
+        const scale = camera.scale || rect.width / STAGE_WIDTH;
         return {
           x: (event.clientX - rect.left) / scale,
           y: (event.clientY - rect.top) / scale,
@@ -1308,15 +1412,28 @@
 
       board.addEventListener("pointerdown", (event) => {
         let item = event.target.closest(".collage-item");
-        if (!item) return;
+        if (!item) {
+          startCameraPan(event);
+          return;
+        }
         if (!hitsVisiblePixel(item, event)) {
           item = itemFromPoint(event, item);
-          if (!item || !hitsVisiblePixel(item, event)) return;
+          if (!item || !hitsVisiblePixel(item, event)) {
+            startCameraPan(event);
+            return;
+          }
         }
         startDrag(item, event);
       });
 
       board.addEventListener("pointermove", (event) => {
+        if (cameraPan) {
+          if (cameraPan.pointerId !== event.pointerId) return;
+          panCamera(event.clientX - cameraPan.clientX, event.clientY - cameraPan.clientY);
+          cameraPan.clientX = event.clientX;
+          cameraPan.clientY = event.clientY;
+          return;
+        }
         if (!active) {
           updateAlphaCursor(event);
           return;
@@ -1344,8 +1461,14 @@
         active = null;
       };
 
-      board.addEventListener("pointerup", endDrag);
-      board.addEventListener("pointercancel", endDrag);
+      board.addEventListener("pointerup", (event) => {
+        if (endCameraPan(event)) return;
+        endDrag(event);
+      });
+      board.addEventListener("pointercancel", (event) => {
+        if (endCameraPan(event)) return;
+        endDrag(event);
+      });
       board.addEventListener("pointerleave", clearAlphaMiss);
 
       board.addEventListener("click", (event) => {
@@ -1371,6 +1494,7 @@
       });
 
       window.addEventListener("resize", fitStage);
+      mobileQuery.addEventListener("change", fitStage);
       fitStage();
     })();
   </script>
