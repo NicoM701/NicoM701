@@ -448,6 +448,15 @@
       filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.35));
     }
 
+    .collage-item[data-id="old-nm-logo"] .old-logo-animation {
+      display: block;
+      width: 100%;
+      height: auto;
+      filter: brightness(0) invert(1) !important;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
     .asset-sticker.soft-tile {
       padding: 7px;
       border-radius: 24px;
@@ -1122,7 +1131,10 @@
 
       <article class="collage-item" data-id="old-nm-logo" style="--x: 393.63px; --y: -14.32px; --w: 72px; --r: 8deg; --z: 59;">
         <div class="asset-sticker">
-          <img src="assets/old-logo-collage.gif" alt="Animated old Nico logo" draggable="false" />
+          <picture>
+            <source srcset="assets/old-logo-collage.apng" type="image/apng" />
+            <img class="old-logo-animation" src="assets/old-logo-collage.gif" alt="Animated old Nico logo" draggable="false" />
+          </picture>
         </div>
       </article>
 
