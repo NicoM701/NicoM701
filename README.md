@@ -1,9 +1,9 @@
 # Hi, I'm Nico 👋
 
 ## 💫 About Me:
-🎓 Current Todo: B.Sc. Computer Science  
-🔬 Focus on machine learning, deep learning, and image recognition  
-📘 Currently working on my bachelor's thesis on underwater acoustic analysis, whale sound recognition, and AI/computer vision-based evaluation pipelines  
+🎓 B.Sc. Computer Science  
+🔬 Focus on machine learning, deep learning, and keeping the vibes up
+📘 Currently working on everything that comes to my mind...
 
 ## 💻 Tech Stack:
 ![Python](https://img.shields.io/badge/python-%233776AB.svg?style=for-the-badge&logo=python&logoColor=white)
