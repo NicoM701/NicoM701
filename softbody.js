@@ -219,7 +219,7 @@
       if(this.drag||trapped){
         const pressure=Math.max(...this.pressure),side=this.pressure.indexOf(pressure);
         if(pressure<Math.max(30,this.radius*.51)){this.charge=0;this.chargeSide=-1;}
-        else {this.charge=this.chargeSide===side?this.charge+dt:dt;this.chargeSide=side;}
+        else {const rate=clamp((pressure/Math.max(30,this.radius*.51))**4,1,18);this.charge=this.chargeSide===side?this.charge+dt*rate:dt*rate;this.chargeSide=side;}
         if(this.charge>=900)this.pop=true;
       }
       for (const box of obstacles) {
@@ -275,6 +275,7 @@
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width, height, ring, glyphs, last = 0, burst = null, theme = 0, boundsDirty=true, playable=true, returnReset=false;
+  let burstCanvas,burstContext;
   let audio;
   const unlockAudio=()=>{
     const Audio=window.AudioContext || window.webkitAudioContext;
@@ -293,12 +294,14 @@
   const updateBounds=()=>{
     const pageTop=page.getBoundingClientRect().top;
     if(returnReset&&pageTop>=-1){
-      returnReset=false;ring=null;burst=null;resize();canvas.dataset.state='intact';return;
+      returnReset=false;
+      if(ring.pop||burst){ring=null;burst=null;if(burstCanvas)burstCanvas.hidden=true;resize();canvas.dataset.state='intact';return;}
     }
     ring.boundsTop=Math.max(0,-pageTop);
     ring.boundsBottom=Math.min(height,innerHeight-pageTop);
     playable=ring.bottom-ring.top>1;
     if(ring.bottom-ring.top<2*(ring.radius+13))returnReset=true;
+    if(returnReset&&ring.bottom-ring.top<=32)ring.pop=true;
     canvas.hidden=!playable;
     boundsDirty=false;
   };
@@ -353,37 +356,45 @@
   let contour;
   const pose = angle => contourPose(contour || sampleContour(a=>ring.point(a)),angle/TAU);
   const explode = now => {
+    if(!burstCanvas){burstCanvas=document.createElement('canvas');burstCanvas.className='text-burst';burstCanvas.setAttribute('aria-hidden','true');document.body.append(burstCanvas);burstContext=burstCanvas.getContext('2d');}
+    const dpr=Math.min(devicePixelRatio||1,2);
+    burstCanvas.width=innerWidth*dpr;burstCanvas.height=innerHeight*dpr;burstContext.setTransform(dpr,0,0,dpr,0,0);burstCanvas.hidden=false;
+    ctx.clearRect(0,0,width,height);
+    const origin=page.getBoundingClientRect();
+    if(!contour)contour=sampleContour(a=>({x:ring.x+Math.cos(a)*ring.radius,y:ring.y+Math.sin(a)*ring.radius}));
     canvas.dataset.state = "fragments";
     burst = {time:now, pieces:[]};
     let word = [];
-    const flush = () => { if (!word.length) return; const middle=word[Math.floor(word.length/2)], at=pose(middle.angle+ring.rotation); burst.pieces.push({word, x:at.x, y:at.y, rotation:at.rotation, vx:(at.x-ring.x)*.009, vy:(at.y-ring.y)*.009-.5, spin:(Math.random()-.5)*.004}); word=[]; };
+    const flush = () => { if (!word.length) return; const middle=word[Math.floor(word.length/2)], at=pose(middle.angle+ring.rotation); burst.pieces.push({word, x:at.x+origin.left, y:clamp(at.y+origin.top,20,innerHeight-20), rotation:at.rotation, vx:(at.x-ring.x)*.009, vy:(at.y-ring.y)*.009-.5, spin:(Math.random()-.5)*.004}); word=[]; };
     glyphs.forEach(g=>{if(/\s/.test(g.letter)) flush(); else word.push(g);});flush();
     if(ring.drag && canvas.hasPointerCapture(ring.drag.id)) canvas.releasePointerCapture(ring.drag.id);
     ring.drag=null;delete canvas.dataset.dragging;delete hitTarget.dataset.dragging;
   };
-  const drawGlyph = (g, x, y, rotation) => {
+  const drawGlyph = (g, x, y, rotation,context=ctx) => {
     if (/\s/.test(g.letter)) return;
-    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(g.scale,1);ctx.fillText(g.letter,0,0);ctx.restore();
+    context.save();context.translate(x,y);context.rotate(rotation);context.scale(g.scale,1);context.fillText(g.letter,0,0);context.restore();
   };
   const animate = now => {
     const elapsed = Math.min(1000, now-last || 16.667); last=now;
     if(boundsDirty)updateBounds();
-    if (playable&&!document.hidden) {
+    if(ring.pop&&!burst)explode(now);
+    if ((playable||burst)&&!document.hidden) {
       ctx.clearRect(0,0,width,height); ctx.font=font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=themes[theme][1];
       if (burst) {
         const age=now-burst.time;
-        ctx.globalAlpha=clamp(1-(age-1300)/600,0,1);
+        burstContext.clearRect(0,0,innerWidth,innerHeight);burstContext.font=font;burstContext.textAlign='center';burstContext.textBaseline='middle';burstContext.fillStyle=themes[theme][1];
+        burstContext.globalAlpha=clamp(1-(age-1300)/600,0,1);
         burst.pieces.forEach(p=>{
           p.vy+=.00145*elapsed;p.x+=p.vx*elapsed;p.y+=p.vy*elapsed;p.rotation+=p.spin*elapsed;
           const mid=p.word[Math.floor(p.word.length/2)].angle;
-          p.word.forEach(g=>{const advance=(g.angle-mid)*ring.radius;drawGlyph(g,p.x+Math.cos(p.rotation)*advance,p.y+Math.sin(p.rotation)*advance,p.rotation);});
+          p.word.forEach(g=>{const advance=(g.angle-mid)*ring.radius;drawGlyph(g,p.x+Math.cos(p.rotation)*advance,p.y+Math.sin(p.rotation)*advance,p.rotation,burstContext);});
         });ctx.globalAlpha=1;
-        if(age>2000&&!returnReset){ring=null;burst=null;resize();canvas.dataset.state="intact";}
+        if(age>2000){burstCanvas.hidden=true;if(!returnReset){ring=null;burst=null;resize();canvas.dataset.state="intact";}}
       } else {
         ring.step(elapsed,[],!reduced.matches);
         contour=sampleContour(a=>ring.point(a));
         if(ring.pop) explode(now);
-        else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation);});
+        else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation,burstContext);});
       }
     }
     hitTarget.hidden = !!burst||!playable;

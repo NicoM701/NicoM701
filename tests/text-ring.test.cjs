@@ -17,7 +17,7 @@ test('free holding does not charge or pop; sustained wall pressure does', () => 
   ring.drag = {x:600,y:400,offsetX:0,offsetY:0,vx:0,vy:0};
   for(let i=0;i<120;i++) ring.step(16.667);
   assert.equal(ring.pop,false);assert.equal(ring.charge,0);
-  ring.drag.x = 0;
+  ring.drag.x = 101;
   for(let i=0;i<53;i++) ring.step(16.667);
   assert.equal(ring.pop,false);
   for(let i=0;i<2;i++) ring.step(16.667);
@@ -26,10 +26,10 @@ test('free holding does not charge or pop; sustained wall pressure does', () => 
 
 test('relieving wall pressure resets the pop timer', () => {
   const ring = new Ring(1200,800,180);
-  ring.drag={x:0,y:400,offsetX:0,offsetY:0,vx:0,vy:0};
+  ring.drag={x:101,y:400,offsetX:0,offsetY:0,vx:0,vy:0};
   for(let i=0;i<45;i++)ring.step(16.667);
   ring.drag.x=600;ring.step(16.667);assert.equal(ring.charge,0);
-  ring.drag.x=0;for(let i=0;i<45;i++)ring.step(16.667);
+  ring.drag.x=101;for(let i=0;i<45;i++)ring.step(16.667);
   assert.equal(ring.pop,false);
 });
 
@@ -56,9 +56,9 @@ test('objects reflect an approaching circle', () => {
 
 test('switching to a different wall starts a fresh pressure hold', () => {
   const ring=new Ring(1200,800,180);
-  ring.drag={x:0,y:400,offsetX:0,offsetY:0,vx:0,vy:0};
+  ring.drag={x:101,y:400,offsetX:0,offsetY:0,vx:0,vy:0};
   for(let i=0;i<45;i++)ring.step(16.667);
-  ring.drag.x=1200;
+  ring.drag.x=1099;
   for(let i=0;i<20;i++)ring.step(16.667);
   assert.equal(ring.pop,false);
   assert.ok(ring.charge<350);
@@ -319,7 +319,7 @@ test('scroll compression stays visible and pops after the normal sustained press
     assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
     assert.ok(p.y>=596&&p.y<=784);
   }
-  ring.boundsTop=650;
+  ring.boundsTop=598;
   for(let i=0;i<53;i++)ring.step(1000/60);
   assert.equal(ring.pop,false);
   for(let i=0;i<2;i++)ring.step(1000/60);
@@ -327,11 +327,24 @@ test('scroll compression stays visible and pops after the normal sustained press
 });
 
 test('relieving scroll compression resets the charge and preserves free-flight rules', () => {
-  const ring=new Ring(1200,1000,180);ring.boundsTop=650;ring.boundsBottom=800;
+  const ring=new Ring(1200,1000,180);ring.boundsTop=598;ring.boundsBottom=800;
   for(let i=0;i<40;i++)ring.step(1000/60);
   ring.boundsTop=0;ring.step(1000/60);
   assert.equal(ring.charge,0);assert.equal(ring.pop,false);
-  ring.boundsTop=650;
+  ring.boundsTop=598;
   for(let i=0;i<40;i++)ring.step(1000/60);
   assert.equal(ring.pop,false);
+});
+
+test('deeper compression pops sooner without charging below the threshold', () => {
+  const timeToPop=depth=>{
+    const ring=new Ring(1200,1000,180);ring.boundsBottom=900;ring.boundsTop=900-(386-2*depth);
+    let time=0;
+    while(!ring.pop&&time<1200){ring.step(10);time+=10;}
+    return time;
+  };
+  assert.equal(timeToPop(80),1200);
+  const shallow=timeToPop(92),medium=timeToPop(125),deep=timeToPop(180);
+  assert.ok(shallow>=850&&shallow<=910);
+  assert.ok(medium<shallow/2);assert.ok(deep<medium/2);
 });
