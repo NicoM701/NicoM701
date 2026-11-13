@@ -309,3 +309,29 @@ test('scrolled visible top and Mac edge constrain flight and held pressure', () 
   const points=Array.from({length:128},(_,i)=>ring.point(i/128*Math.PI*2));
   assert.ok(points.every(p=>p.y>=206-1e-6));
 });
+
+test('scroll compression stays visible and pops after the normal sustained pressure hold', () => {
+  const ring=new Ring(1200,1000,180);ring.boundsTop=580;ring.boundsBottom=800;
+  for(let i=0;i<30;i++)ring.step(1000/60);
+  assert.equal(ring.pop,false);assert.equal(ring.y,690);
+  for(let i=0;i<128;i++){
+    const p=ring.point(i/128*Math.PI*2);
+    assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
+    assert.ok(p.y>=596&&p.y<=784);
+  }
+  ring.boundsTop=650;
+  for(let i=0;i<53;i++)ring.step(1000/60);
+  assert.equal(ring.pop,false);
+  for(let i=0;i<2;i++)ring.step(1000/60);
+  assert.equal(ring.pop,true);
+});
+
+test('relieving scroll compression resets the charge and preserves free-flight rules', () => {
+  const ring=new Ring(1200,1000,180);ring.boundsTop=650;ring.boundsBottom=800;
+  for(let i=0;i<40;i++)ring.step(1000/60);
+  ring.boundsTop=0;ring.step(1000/60);
+  assert.equal(ring.charge,0);assert.equal(ring.pop,false);
+  ring.boundsTop=650;
+  for(let i=0;i<40;i++)ring.step(1000/60);
+  assert.equal(ring.pop,false);
+});

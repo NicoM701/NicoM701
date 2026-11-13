@@ -99,7 +99,8 @@
     const cx=x-depth(pressure[0])+depth(pressure[1]),cy=y-depth(pressure[2])+depth(pressure[3]);
     const shape=r=>{
       let points=unitCircle.map(p=>({x:cx+p.x*r,y:cy+p.y*r}));
-      for(const [axis,boundary,greater] of [['x',16,true],['x',width-16,false],['y',top+16,true],['y',bottom-16,false]])points=clipPolygon(points,axis,boundary,greater);
+      const inset=Math.min(16,Math.max(0,bottom-top)*.2);
+      for(const [axis,boundary,greater] of [['x',16,true],['x',width-16,false],['y',top+inset,true],['y',bottom-inset,false]])points=clipPolygon(points,axis,boundary,greater);
       return roundContact(points);
     };
     let low=radius,high=radius*3;
@@ -181,7 +182,11 @@
       this.version++;
       const dt = ms, f = dt / (1000 / 60), r = this.radius + 13;
       this.pressure.fill(0);
-      if (this.drag) {
+      const trapped=this.bottom-this.top<2*r;
+      if(trapped){
+        this.y=(this.top+this.bottom)/2;this.vy=0;
+        this.pressure[2]=this.pressure[3]=(2*r-(this.bottom-this.top))/2;
+      } else if (this.drag) {
         const targetX = this.drag.x - this.drag.offsetX, targetY = this.drag.y - this.drag.offsetY;
         this.pressure = [Math.max(0, r - targetX), Math.max(0, targetX + r - this.width), Math.max(0, this.top+r - targetY), Math.max(0, targetY + r - this.bottom)];
         this.x = clamp(targetX, r, this.width - r); this.y = clamp(targetY, this.top+r, this.bottom-r);
@@ -191,10 +196,6 @@
           if(touching&&!this.contacts[side])this.impulse([Math.PI,0,-Math.PI/2,Math.PI/2][side],side<2?this.vx:this.vy);
           this.contacts[side]=touching;
         });
-        const pressure = Math.max(...this.pressure), side = this.pressure.indexOf(pressure);
-        if (pressure < Math.max(30, this.radius * .51)) { this.charge = 0; this.chargeSide = -1; }
-        else { this.charge = this.chargeSide === side ? this.charge + dt : dt; this.chargeSide = side; }
-        if (this.charge >= 900) this.pop = true;
       } else if (motion) {
         this.charge = 0;
         this.vy += GRAVITY * dt;
@@ -215,6 +216,12 @@
         this.rotation+=(this.spinRate+this.spinVelocity)*dt;
         this.spinVelocity*=Math.pow(resting?.88:.991,f);
       }
+      if(this.drag||trapped){
+        const pressure=Math.max(...this.pressure),side=this.pressure.indexOf(pressure);
+        if(pressure<Math.max(30,this.radius*.51)){this.charge=0;this.chargeSide=-1;}
+        else {this.charge=this.chargeSide===side?this.charge+dt:dt;this.chargeSide=side;}
+        if(this.charge>=900)this.pop=true;
+      }
       for (const box of obstacles) {
         const nearestX = clamp(this.x, box.x, box.x + box.w), nearestY = clamp(this.y, box.y, box.y + box.h);
         let dx = this.x - nearestX, dy = this.y - nearestY, distance = Math.hypot(dx, dy);
@@ -232,7 +239,7 @@
       const blend=1-Math.exp(-dt/(this.drag?65:45));
       for(let i=0;i<4;i++)this.contactPressure[i]+=(this.pressure[i]-this.contactPressure[i])*blend;
       this.shape.a=this.shape.b=this.radius;this.shape.n=2;
-      this.x=clamp(this.x,r,this.width-r);this.y=clamp(this.y,this.top+r,this.bottom-r);
+      this.x=clamp(this.x,r,this.width-r);this.y=trapped?(this.top+this.bottom)/2:clamp(this.y,this.top+r,this.bottom-r);
       const next = this.nextSpeed;
       for (let i = 0; i < 64; i++) {
         const value = this.displacement[i], a = i / 64 * TAU;
@@ -267,7 +274,7 @@
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let width, height, ring, glyphs, last = 0, burst = null, theme = 0, boundsDirty=true, playable=true;
+  let width, height, ring, glyphs, last = 0, burst = null, theme = 0, boundsDirty=true, playable=true, returnReset=false;
   let audio;
   const unlockAudio=()=>{
     const Audio=window.AudioContext || window.webkitAudioContext;
@@ -285,9 +292,13 @@
   const font = '400 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
   const updateBounds=()=>{
     const pageTop=page.getBoundingClientRect().top;
+    if(returnReset&&pageTop>=-1){
+      returnReset=false;ring=null;burst=null;resize();canvas.dataset.state='intact';return;
+    }
     ring.boundsTop=Math.max(0,-pageTop);
     ring.boundsBottom=Math.min(height,innerHeight-pageTop);
-    playable=ring.bottom-ring.top>=2*(ring.radius+13);
+    playable=ring.bottom-ring.top>1;
+    if(ring.bottom-ring.top<2*(ring.radius+13))returnReset=true;
     canvas.hidden=!playable;
     boundsDirty=false;
   };
@@ -367,7 +378,7 @@
           const mid=p.word[Math.floor(p.word.length/2)].angle;
           p.word.forEach(g=>{const advance=(g.angle-mid)*ring.radius;drawGlyph(g,p.x+Math.cos(p.rotation)*advance,p.y+Math.sin(p.rotation)*advance,p.rotation);});
         });ctx.globalAlpha=1;
-        if(age>2000){ring=null;burst=null;resize();canvas.dataset.state="intact";}
+        if(age>2000&&!returnReset){ring=null;burst=null;resize();canvas.dataset.state="intact";}
       } else {
         ring.step(elapsed,[],!reduced.matches);
         contour=sampleContour(a=>ring.point(a));

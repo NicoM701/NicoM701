@@ -1,8 +1,10 @@
 ﻿(() => {
   const collage=document.querySelector('#moodboard');
   const loadCollage=()=>{
-    collage.querySelectorAll('[data-src]').forEach(media=>{media.src=media.dataset.src;delete media.dataset.src;});
+    collage.querySelectorAll('[data-src]').forEach(media=>{media.loading='eager';media.src=media.dataset.src;delete media.dataset.src;});
   };
+  addEventListener('scroll',loadCollage,{once:true,passive:true});
+  setTimeout(loadCollage,700);
   const collageObserver=new IntersectionObserver(entries=>{
     const visible=entries.some(entry=>entry.isIntersecting);
     if(visible)loadCollage();
