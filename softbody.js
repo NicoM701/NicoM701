@@ -25,6 +25,20 @@
   function nextTheme(current, count, random = Math.random) {
     return (current + 1 + Math.floor(random() * (count - 1))) % count;
   }
+  function bounceSound(audio, velocity) {
+    if(!audio || audio.state!=='running')return;
+    const now=audio.currentTime,oscillator=audio.createOscillator(),gain=audio.createGain();
+    oscillator.type='sine';
+    oscillator.frequency.setValueAtTime(108,now);
+    oscillator.frequency.exponentialRampToValueAtTime(54,now+.12);
+    gain.gain.setValueAtTime(0,now);
+    gain.gain.linearRampToValueAtTime(.008*clamp(Math.abs(velocity),.25,1),now+.006);
+    gain.gain.exponentialRampToValueAtTime(.00001,now+.12);
+    gain.gain.linearRampToValueAtTime(0,now+.13);
+    oscillator.connect(gain);gain.connect(audio.destination);
+    oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+    oscillator.start(now);oscillator.stop(now+.14);
+  }
   function shapePoint(a, b, n, angle) {
     const c = Math.cos(angle), t = Math.sin(angle);
     return {x:a*Math.sign(c)*Math.abs(c)**(2/n), y:b*Math.sign(t)*Math.abs(t)**(2/n)};
@@ -112,7 +126,7 @@
         const distance = Math.abs(wrap(i / 64 * TAU - angle));
         this.speed[i] += depth * (-.34 * Math.exp(-distance * distance / .22) + .075 * Math.exp(-((distance - Math.PI / 2) ** 2) / .42));
       }
-      if (Math.abs(velocity) > .12) this.onImpact();
+      if (Math.abs(velocity) > .22) this.onImpact(velocity);
     }
     release(time, cancelled) {
       if (!this.drag) return;
@@ -160,10 +174,10 @@
         walls.forEach((hit, side) => {
           if (!hit) return;
           const horizontal = side < 2, velocity = horizontal ? this.vx : this.vy;
-          this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
+          if(Math.abs(velocity)>.18)this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
           const restitution = RESTITUTION;
           if (horizontal) { this.x = clamp(this.x, r, this.width - r); this.vx = -velocity * restitution; }
-          else { this.y = clamp(this.y, r, this.height - r); this.vy = Math.abs(velocity) < .09 ? 0 : -velocity * restitution; this.vx *= .92; }
+          else { this.y = clamp(this.y, r, this.height - r); this.vy = Math.abs(velocity) < .18 ? 0 : -velocity * restitution; this.vx *= .92; }
         });
         this.vx *= Math.pow(.999, f);
         if (Math.abs(this.vx) + Math.abs(this.vy) > .015) this.rotation += TAU * dt / 60000;
@@ -212,12 +226,20 @@
       return {x:this.x+p.x,y:this.y+p.y};
     }
   }
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { Ring, typeset, nextTheme, sampleContour, contourPose }; return; }
+  if (typeof module !== 'undefined' && module.exports) { module.exports = { Ring, typeset, nextTheme, sampleContour, contourPose, bounceSound }; return; }
 
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width, height, ring, glyphs, last = 0, burst = null, theme = 0, impactTime = 0;
+  let audio;
+  const unlockAudio=()=>{
+    const Audio=window.AudioContext || window.webkitAudioContext;
+    if(!Audio)return;
+    try{audio ||= new Audio();audio.resume().catch(()=>{});}catch{}
+  };
+  document.addEventListener('pointerdown',unlockAudio,{once:true,capture:true,passive:true});
+  document.addEventListener('keydown',unlockAudio,{once:true,capture:true});
   const themes = [['#000000','#ffffff'],['#163cff','#ffffff'],['#ff3b30','#ffffff'],['#d7ff00','#111111'],['#7c3aed','#ffffff'],['#00d9ff','#001018'],['#ff6a00','#ffffff'],['#ff4fa3','#19000c']];
   const font = '400 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
   const resize = () => {
@@ -230,10 +252,11 @@
     else { ring.width = width; ring.height = height; ring.radius = radius; ring.x = clamp(ring.x, radius + 16, width - radius - 16); ring.y = clamp(ring.y, radius + 16, height - radius - 16); }
     ctx.font = font;
     glyphs = typeset(window.PORTFOLIO.text, c => ctx.measureText(c).width, radius, 26);
-    ring.onImpact = () => {
+    ring.onImpact = velocity => {
       const now = performance.now();
       if (reduced.matches || now - impactTime < 250) return;
       impactTime = now; theme = nextTheme(theme, themes.length);
+      if(!document.hidden)bounceSound(audio,velocity);
       document.documentElement.style.setProperty('--bg', themes[theme][0]);
       document.documentElement.style.setProperty('--mac-tint', theme === 0 ? '#777a82' : themes[theme][0]);
       document.documentElement.style.setProperty('--ink', themes[theme][1]);

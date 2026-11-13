@@ -186,3 +186,44 @@ test('deeper compression stores more energy and corners do not double the kick',
   assert.ok(Math.hypot(corner.vx,corner.vy)<=deep.vx*1.42);
   assert.equal(cancel.vx,0);assert.equal(cancel.vy,0);
 });
+
+test('the fall settles without a tail of tiny bounces or color-triggering impacts', () => {
+  const ring=new Ring(1200,800,180),impacts=[];
+  ring.onImpact=velocity=>impacts.push(Math.abs(velocity));
+  for(let i=0;i<1200;i++)ring.step(1000/60);
+  assert.ok(impacts.length>1&&impacts.length<=7,`too many impacts: ${impacts.length}`);
+  assert.ok(impacts.every(v=>v>.22),'tiny impacts still trigger effects');
+  for(let i=0;i<120;i++){
+    ring.step(1000/60);
+    assert.equal(ring.vy,0,'resting ring keeps hopping');
+  }
+});
+
+test('portfolio text uses German for German locales and English otherwise', () => {
+  const vm=require('node:vm'),source=require('node:fs').readFileSync(require('node:path').join(__dirname,'../portfolio-config.js'),'utf8');
+  for(const language of ['de','de-DE','de-AT','en-US','fr-FR','']){
+    const context={window:{},navigator:{language}};
+    vm.runInNewContext(source,context);
+    assert.ok(context.window.PORTFOLIO.text.startsWith(language.startsWith('de')?'Hi, das ist':'Hi, this is NicoM701'));
+    assert.ok(!context.window.PORTFOLIO.text.includes('finale text'));
+  }
+});
+
+test('bounce sound is a short bass tone with a hard low peak and silent edges', () => {
+  const {bounceSound}=require('../softbody.js');
+  for(const velocity of [.23,.7,3,100]){
+    const envelope=[],frequencies=[],param=events=>({setValueAtTime:(v,t)=>events.push([v,t]),linearRampToValueAtTime:(v,t)=>events.push([v,t]),exponentialRampToValueAtTime:(v,t)=>events.push([v,t])});
+    let stopped;
+    const oscillator={frequency:param(frequencies),connect(){},disconnect(){},start(){},stop(t){stopped=t;}};
+    const gain={gain:param(envelope),connect(){},disconnect(){}};
+    bounceSound({state:'running',currentTime:10,destination:{},createOscillator:()=>oscillator,createGain:()=>gain},velocity);
+    assert.equal(oscillator.type,'sine');
+    assert.ok(Math.max(...envelope.map(([value])=>value))<=.008);
+    assert.equal(envelope[0][0],0);assert.equal(envelope.at(-1)[0],0);
+    assert.ok(stopped-10<.15);
+    assert.ok(frequencies.every(([hz])=>hz>=50&&hz<=110));
+    oscillator.onended();
+  }
+  bounceSound(null,1);
+  bounceSound({state:'suspended',createOscillator(){throw Error('audio must remain silent');}},1);
+});
