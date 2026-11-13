@@ -394,7 +394,7 @@
         ring.step(elapsed,[],!reduced.matches);
         contour=sampleContour(a=>ring.point(a));
         if(ring.pop) explode(now);
-        else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation,burstContext);});
+        else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation);});
       }
     }
     hitTarget.hidden = !!burst||!playable;
