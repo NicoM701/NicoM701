@@ -1,6 +1,7 @@
 ﻿(function () {
   const TAU = Math.PI * 2;
-  const GRAVITY = .0004, RESTITUTION = .94, FRICTION = .971;
+  const GRAVITY = .00065, RESTITUTION = .94, FRICTION = .99;
+  const SQUEEZE_GRAVITY = .0004;
   const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
   const compressionDepth = (pressure, radius) => radius * .72 * Math.tanh(pressure / (radius * .9));
@@ -150,7 +151,7 @@
         const rebound=(velocity,pressure,distance)=>{
           if(Math.abs(pressure)<=.5)return velocity;
           const strength=clamp(Math.abs(pressure)/Math.max(30,this.radius*.51),0,1);
-          const launch=(.7875+distance*.00525+Math.sqrt(2*GRAVITY*distance)*1.75)*strength**4;
+          const launch=(.7875+distance*.00525+Math.sqrt(2*SQUEEZE_GRAVITY*distance)*1.75)*strength**4;
           return Math.sign(pressure)*launch;
         };
         const px=this.pressure[0]-this.pressure[1],py=this.pressure[2]-this.pressure[3];
@@ -198,14 +199,14 @@
           if (!hit) return;
           const horizontal = side < 2, velocity = horizontal ? this.vx : this.vy;
           if(Math.abs(velocity)>=.04)this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
-          const restitution = RESTITUTION;
+          const restitution = side===3 ? RESTITUTION*clamp(Math.abs(velocity)/.22,.35,1) : RESTITUTION;
           if (horizontal) { this.x = clamp(this.x, r, this.width - r); this.vx = -velocity * restitution; }
           else { this.y = clamp(this.y, r, this.height - r); this.vy = side===3 && Math.abs(velocity) < .04 ? 0 : -velocity * restitution; }
         });
         const damping=Math.pow(FRICTION,f);
         this.vx*=damping;this.vy*=damping;
         const resting=this.y>=this.height-r-.75&&Math.abs(this.vx)<.03&&Math.abs(this.vy)<.03;
-        this.spinRate+=((resting?0:TAU/60000)-this.spinRate)*(1-Math.exp(-dt/160));
+        this.spinRate+=((resting?TAU/360000:TAU/60000)-this.spinRate)*(1-Math.exp(-dt/500));
         this.rotation+=(this.spinRate+this.spinVelocity)*dt;
         this.spinVelocity*=Math.pow(resting?.88:.991,f);
       }

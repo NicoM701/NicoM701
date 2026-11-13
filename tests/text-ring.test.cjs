@@ -1,4 +1,4 @@
-﻿const {test} = require('node:test');
+const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {Ring, typeset} = require('../softbody.js');
 
@@ -36,7 +36,7 @@ test('relieving wall pressure resets the pop timer', () => {
 test('gravity and floor restitution include the reference per-frame damping', () => {
   const ring=new Ring(1200,800,180);ring.y=600;ring.vy=.8;
   const before=ring.vy;ring.step(16.667);assert.ok(ring.vy<0);
-  assert.ok(Math.abs(ring.vy+(before+.0004*16.667)*.94*.971)<.0001);
+  assert.ok(Math.abs(ring.vy+(before+.00065*16.667)*.94*.99)<.0001);
 });
 
 test('impact waves settle without changing average radius or separating letters', () => {
@@ -202,10 +202,10 @@ test('the fall settles without a tail of tiny bounces or color-triggering impact
 test('free movement loses energy continuously instead of cutting off the last bounce', () => {
   const ring=new Ring(1200,3000,180);ring.y=1000;ring.vx=.4;ring.vy=-.2;
   ring.step(1000/60);
-  assert.ok(Math.abs(ring.vx-.4*.971)<1e-9);
-  assert.ok(Math.abs(ring.vy-(-.2+.0004*1000/60)*.971)<1e-9);
+  assert.ok(Math.abs(ring.vx-.4*.99)<1e-9);
+  assert.ok(Math.abs(ring.vy-(-.2+.00065*1000/60)*.99)<1e-9);
   ring.y=ring.height-ring.radius-13;ring.vy=.1;
-  ring.step(1000/60);assert.ok(ring.vy<-.08,'small visible rebound was cut off');
+  ring.step(1000/60);assert.ok(ring.vy<-.035,'small visible rebound was cut off');
 });
 
 test('quick contacts on separate edges each notify audio and theme once', () => {
@@ -233,24 +233,30 @@ test('a shallow corner squeeze nudges while a deep squeeze launches away', () =>
   assert.ok(Math.abs(deep.vx)>Math.abs(deep.vy),'corner launch ignores available travel distance');
 });
 
-test('drop timings match the measured reference trace including its small rebound tail', () => {
-  const ring=new Ring(1280,800,187.159375),times=[];
-  let time=0;
+test('fall feels heavier and throws retain momentum until a wall impact', () => {
+  const ring=new Ring(1280,800,187.159375),times=[];let time=0;
   ring.onCollision=()=>times.push(time);
-  for(let i=0;i<420;i++){time+=(1000/60);ring.step(1000/60);}
-  const measured=[2266.667,3100,3600,3950,4216.667];
-  assert.equal(times.length,measured.length);
-  times.forEach((t,i)=>assert.ok(Math.abs(t-measured[i])<1000/60));
+  for(let i=0;i<120;i++){time+=1000/60;ring.step(1000/60);}
+  assert.ok(times[0]>1000&&times[0]<1600,`slow initial fall: ${times[0]}`);
+  const thrown=new Ring(1200,800,180);thrown.x=400;thrown.y=400;thrown.vx=1.5;
+  for(let i=0;i<12;i++)thrown.step(1000/60);
+  assert.ok(thrown.vx>1.3,'air drag drains the throw before impact');
+  thrown.x=1008;thrown.step(1000/60);
+  assert.ok(thrown.vx< -1.2,'wall rebound lost too much momentum');
 });
 
-test('spin eases to rest instead of freezing on the last floor contact', () => {
+test('resting ring keeps a slow idle rotation without generating impacts', () => {
   const ring=new Ring(1200,800,180);ring.y=607;ring.vy=.02;
   const before=ring.rotation;ring.step(1000/60);
   const first=ring.rotation-before;assert.ok(first>0);
   const next=ring.rotation;ring.step(1000/60);
   assert.ok(ring.rotation-next>0&&ring.rotation-next<first);
   for(let i=0;i<180;i++)ring.step(1000/60);
-  assert.ok(ring.spinRate<1e-9);
+  assert.ok(Math.abs(ring.spinRate-Math.PI*2/360000)<1e-6);
+  let impacts=0;ring.onCollision=()=>impacts++;
+  const angle=ring.rotation;
+  for(let i=0;i<120;i++)ring.step(1000/60);
+  assert.ok(ring.rotation>angle+.02);assert.equal(impacts,0);assert.equal(ring.vy,0);
 });
 
 test('portfolio text uses German for German locales and English otherwise', () => {
