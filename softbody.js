@@ -219,7 +219,7 @@
       if(this.drag||trapped){
         const pressure=Math.max(...this.pressure),side=this.pressure.indexOf(pressure);
         if(pressure<Math.max(30,this.radius*.51)){this.charge=0;this.chargeSide=-1;}
-        else {const rate=clamp((pressure/Math.max(30,this.radius*.51))**4,1,18);this.charge=this.chargeSide===side?this.charge+dt*rate:dt*rate;this.chargeSide=side;}
+        else {const rate=trapped&&!this.drag?clamp((pressure/Math.max(30,this.radius*.51))**4,1,18):1;this.charge=this.chargeSide===side?this.charge+dt*rate:dt*rate;this.chargeSide=side;}
         if(this.charge>=900)this.pop=true;
       }
       for (const box of obstacles) {

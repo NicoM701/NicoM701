@@ -348,3 +348,16 @@ test('deeper compression pops sooner without charging below the threshold', () =
   assert.ok(shallow>=850&&shallow<=910);
   assert.ok(medium<shallow/2);assert.ok(deep<medium/2);
 });
+
+test('deep held corner compression leaves time to release and fling', () => {
+  const ring=new Ring(1200,800,180);
+  ring.drag={x:0,y:800,offsetX:0,offsetY:0,vx:0,vy:0,time:1000};
+  for(let i=0;i<80;i++)ring.step(10);
+  assert.equal(ring.pop,false);assert.equal(ring.charge,800);
+  ring.release(1020,false);
+  assert.ok(ring.vx>1&&ring.vy< -1);assert.equal(ring.pop,false);
+  const held=new Ring(1200,800,180);
+  held.drag={x:0,y:800,offsetX:0,offsetY:0,vx:0,vy:0,time:1000};
+  for(let i=0;i<90;i++)held.step(10);
+  assert.equal(held.pop,true);
+});
