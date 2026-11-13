@@ -1,0 +1,259 @@
+{
+  "__settings": {
+    "shadow": 0.38,
+    "shadowSize": 0.36
+  },
+  "quote-poster": {
+    "fit": "cover",
+    "mediaType": "image",
+    "r": -1,
+    "ratio": "2 / 1",
+    "shape": "cut",
+    "w": 480,
+    "x": -20.91,
+    "y": 11.11,
+    "z": 6
+  },
+  "madeira-photo": {
+    "mediaType": "image",
+    "r": -3,
+    "ratio": "3 / 4",
+    "shape": "arch",
+    "w": 286,
+    "x": 442.88,
+    "y": -29.05,
+    "z": 37
+  },
+  "discord-pride": {
+    "fit": "cover",
+    "mediaType": "image",
+    "r": 0,
+    "ratio": "1 / 1",
+    "shape": "circle",
+    "w": 112,
+    "x": 1124.89,
+    "y": 2.44,
+    "z": 95
+  },
+  "maple-leaf": {
+    "mediaType": "image",
+    "r": 18,
+    "w": 136,
+    "x": 366.52,
+    "y": 316.67,
+    "z": 46
+  },
+  "nico-times": {
+    "mediaType": "image",
+    "r": -5,
+    "ratio": "16 / 9",
+    "shape": "arch",
+    "w": 352,
+    "x": 69.61,
+    "y": 334.76,
+    "z": 11
+  },
+  "speed-glasses": {
+    "mediaType": "image",
+    "r": 12,
+    "w": 126,
+    "x": 721.29,
+    "y": 89.84,
+    "z": 42
+  },
+  "subway-photo": {
+    "mediaType": "image",
+    "r": -1,
+    "ratio": "3 / 2",
+    "shape": "squircle",
+    "w": 354,
+    "x": 682.23,
+    "y": 263.91,
+    "z": 16
+  },
+  "wolf-illustration": {
+    "mediaType": "image",
+    "r": 9,
+    "ratio": "1 / 1",
+    "shape": "circle",
+    "w": 198,
+    "x": 453.77,
+    "y": 371.46,
+    "z": 20
+  },
+  "unhappy-sticker": {
+    "mediaType": "image",
+    "r": 10,
+    "w": 94,
+    "x": 826.37,
+    "y": -55.58,
+    "z": 70
+  },
+  "keychron-k4": {
+    "mediaType": "image",
+    "r": -7,
+    "w": 258,
+    "x": 703.33,
+    "y": 160.11,
+    "z": 63
+  },
+  "phone": {
+    "mediaType": "image",
+    "r": 11,
+    "w": 160,
+    "x": 1036.63,
+    "y": 99.54,
+    "z": 107
+  },
+  "shargeek-charger": {
+    "mediaType": "image",
+    "r": 5,
+    "w": 80,
+    "x": 874.84,
+    "y": 432.5,
+    "z": 124
+  },
+  "aluminum-can": {
+    "mediaType": "image",
+    "r": -8,
+    "w": 102,
+    "x": 597.9,
+    "y": 299.57,
+    "z": 41
+  },
+  "claude": {
+    "mediaType": "image",
+    "r": 10,
+    "w": 50,
+    "x": 378.51,
+    "y": 207.93,
+    "z": 171
+  },
+  "codex": {
+    "mediaType": "image",
+    "r": 0,
+    "w": 48,
+    "x": 901.52,
+    "y": 82.99,
+    "z": 128
+  },
+  "github": {
+    "mediaType": "image",
+    "r": 16,
+    "w": 48,
+    "x": 978.25,
+    "y": 195.84,
+    "z": 132
+  },
+  "minecraft": {
+    "mediaType": "image",
+    "r": -6,
+    "w": 56,
+    "x": 187.1,
+    "y": 307.16,
+    "z": 21
+  },
+  "pixel-eyes": {
+    "mediaType": "image",
+    "r": 12,
+    "w": 164,
+    "x": 309.71,
+    "y": 507.33,
+    "z": 41
+  },
+  "old-nm-logo": {
+    "mediaType": "image",
+    "r": 8,
+    "w": 72,
+    "x": 393.63,
+    "y": -14.32,
+    "z": 59
+  },
+  "love-emote": {
+    "mediaType": "image",
+    "r": 7,
+    "w": 74,
+    "x": 678.34,
+    "y": 506.32,
+    "z": 111
+  },
+  "peepo-shy": {
+    "mediaType": "image",
+    "r": -9,
+    "w": 64,
+    "x": 1033.89,
+    "y": 453.28,
+    "z": 122
+  },
+  "booba-emote": {
+    "mediaType": "image",
+    "r": -13,
+    "w": 68,
+    "x": 47.21,
+    "y": 240.36,
+    "z": 112
+  },
+  "signature-nico": {
+    "mediaType": "image",
+    "r": -5,
+    "w": 90,
+    "x": 542.02,
+    "y": 253.16,
+    "z": 65
+  },
+  "drop-pb": {
+    "fit": "cover",
+    "mediaType": "image",
+    "r": 4,
+    "ratio": "1080 / 1350",
+    "shape": "cut",
+    "w": 184,
+    "x": 938.22,
+    "y": -35.77,
+    "z": 41
+  },
+  "drop-gfpocjmpu4sm8tct5sugy-1034-irzxs": {
+    "fit": "cover",
+    "mediaType": "video",
+    "r": 13,
+    "ratio": "480 / 853",
+    "shape": "rect",
+    "w": 132,
+    "x": 1118.16,
+    "y": 326.87,
+    "z": 87
+  },
+  "drop-hcwoavvwuaaeuxs": {
+    "fit": "cover",
+    "mediaType": "image",
+    "r": -9,
+    "ratio": "1080 / 1350",
+    "shape": "squircle",
+    "w": 162,
+    "x": 156.02,
+    "y": 181.24,
+    "z": 1
+  },
+  "pulsar-mouse": {
+    "mediaType": "image",
+    "r": 0,
+    "w": 172,
+    "x": 303.28,
+    "y": 238.37,
+    "z": 45
+  },
+  "drop-macbook-pro-silver": {
+    "fileName": "macbook-pro-silver.png",
+    "fit": "cover",
+    "imported": true,
+    "mediaType": "image",
+    "pngMode": true,
+    "r": -7,
+    "ratio": "600 / 428",
+    "shape": "soft",
+    "w": 262,
+    "x": 704.52,
+    "y": -22.62,
+    "z": 36
+  }
+}

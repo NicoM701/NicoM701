@@ -1,0 +1,50 @@
+﻿@layer ui-sdk;
+html { overflow-x: clip; overflow-y: auto; touch-action: pan-y; overscroll-behavior-y: auto; scroll-behavior: smooth; background: var(--bg); }
+body { overflow: visible; touch-action: pan-y; background: var(--bg); }
+.page { height: min(850px,100dvh); min-height: 660px; background: transparent; overflow: clip; }
+.toolbar { position: absolute; }
+.moodboard { touch-action: pan-y; }
+.ball-playground { position: relative; width: 100%; height: 100svh; min-height: 560px; overflow: clip; touch-action: pan-y; }
+#softbody { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+#softbody:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
+#ball-hit-target { position: absolute; border-radius: 50%; touch-action: none; cursor: grab; z-index: 3; }
+#ball-hit-target[data-dragging] { cursor: grabbing; }
+#references { max-width: 1600px; margin: auto; padding: 90px 4vw 60px; }
+.reference-page { position: relative; scroll-margin-top: clamp(40px,8svh,90px); }
+.reference-page + .reference-page { margin-top: 90px; }
+.reference-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5vw; }
+.reference { position: relative; aspect-ratio: 1.36; min-width: 0; width: 100%; }
+.device { position: absolute; }
+.device > img { position: relative; width: 100%; display: block; pointer-events: none; z-index: 2; }
+.device .screen { position: absolute; overflow: hidden; background: #080808; z-index: 3; }
+.device iframe { width: 100%; height: 100%; border: 0; display: block; background: #080808; }
+.device.desktop { width: 88%; left: 6%; top: 0; isolation: isolate; }
+.device.phone { width: 17%; left: 63%; bottom: 0; z-index: 3; }
+.device.phone .screen { border-radius: 11% / 5%; }
+.device.phone::after { content: ''; position: absolute; top: 3.1856%; left: 27.5813%; width: 44.8375%; height: 3.7452%; background: #030303; border-radius: 0 0 12px 12px; pointer-events: none; z-index: 4; }
+.device.desktop::after { content: ''; position: absolute; inset: 0; z-index: 4; pointer-events: none; background: color-mix(in srgb,var(--mac-tint,#777a82) 82%,white); mask: url('assets/device-frames/desktop.png') center / 100% 100% no-repeat; clip-path: inset(74.2% 0 0); mix-blend-mode: multiply; transition: background-color 180ms ease; }
+.screen:focus-within { outline: 2px solid currentColor; }
+.device .captured-screen { overflow: auto; scrollbar-width: none; touch-action: pan-y; overscroll-behavior-y: auto; }
+.captured-screen::-webkit-scrollbar { display: none; }
+.capture-slice { position: relative; width: 100%; overflow: hidden; }
+.device .capture-slice img { position: absolute; width: 100%; height: auto; display: block; filter: none; pointer-events: none; }
+.scroll-cue { position: absolute; bottom: 18px; left: calc(50% - 22px); width: 44px; height: 44px; display: grid; place-items: center; color: var(--ink); z-index: 4; visibility: hidden; opacity: 0; pointer-events: none; transition: opacity 140ms ease; }
+.reference-page .scroll-cue { position: fixed; }
+.scroll-cue[data-active] { visibility: visible; opacity: 1; pointer-events: auto; }
+.scroll-cue svg { width: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.scroll-cue:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.collage-item[hidden] { display: none; }
+.collage-item .image-card { border: 0; background: transparent; box-shadow: none; }
+.collage-item:has(.image-card), .collage-item:has(.image-card):hover, .collage-item:has(.image-card).is-dragging { filter: none; }
+.collage-item[data-id="pulsar-mouse"] { filter: drop-shadow(0 3px 3px rgb(0 0 0 / .13)); }
+.collage-item[data-id="pulsar-mouse"] img { filter: none; }
+@media(max-width:760px) {
+  #references { padding: 48px 5vw; }
+  .reference-grid { grid-template-columns: 1fr; gap: 64px; }
+  .reference-page + .reference-page { margin-top: 64px; }
+  .page { min-height: 720px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html { scroll-behavior: auto; }
+  .device.desktop::after, .scroll-cue { transition: none; }
+}

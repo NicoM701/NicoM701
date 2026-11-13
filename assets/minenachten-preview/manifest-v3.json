@@ -1,0 +1,132 @@
+{
+  "source": "http://192.168.178.51:3810/",
+  "captured": "2026-11-13",
+  "reason": "Source CSP frame-ancestors none",
+  "state": "Main website, animations paused, native readable type instead of fine text dithering; source server unchanged",
+  "views": {
+    "desktop": {
+      "height": 720,
+      "total": 6916,
+      "width": 1280,
+      "tiles": [
+        {
+          "src": "assets/minenachten-preview/desktop-01-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-02-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-03-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-04-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-05-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-06-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-07-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-08-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-09-v3.png",
+          "height": 720,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/desktop-10-v3.png",
+          "height": 436,
+          "cropTop": 284
+        }
+      ]
+    },
+    "phone": {
+      "height": 844,
+      "total": 9891,
+      "width": 390,
+      "tiles": [
+        {
+          "src": "assets/minenachten-preview/phone-01-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-02-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-03-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-04-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-05-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-06-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-07-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-08-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-09-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-10-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-11-v3.png",
+          "height": 844,
+          "cropTop": 0
+        },
+        {
+          "src": "assets/minenachten-preview/phone-12-v3.png",
+          "height": 607,
+          "cropTop": 237
+        }
+      ]
+    }
+  }
+}
