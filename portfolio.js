@@ -1,4 +1,14 @@
 ﻿(() => {
+  const collage=document.querySelector('#moodboard');
+  const loadCollage=()=>{
+    collage.querySelectorAll('[data-src]').forEach(media=>{media.src=media.dataset.src;delete media.dataset.src;});
+  };
+  const collageObserver=new IntersectionObserver(entries=>{
+    const visible=entries.some(entry=>entry.isIntersecting);
+    if(visible)loadCollage();
+    collage.querySelectorAll('video').forEach(video=>{if(visible)video.play().catch(()=>{});else video.pause();});
+  },{rootMargin:'300px'});
+  collageObserver.observe(collage);
   const root = document.querySelector('#references');
   const count = Math.ceil(window.PORTFOLIO.references.length / 2);
   const grids = Array.from({length:count}, (_, index) => {
@@ -71,6 +81,7 @@
       device.append(screen,image); group.append(device);
       new ResizeObserver(resize).observe(screen);
     });
+    dispatchEvent(new Event('portfolio-ready'));
   });
 
   const cues = [...document.querySelectorAll('.scroll-cue')];

@@ -54,19 +54,21 @@
     for(let i=1;i<points.length;i++)lengths.push(lengths[i-1]+Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y));
     return {points,lengths,total:lengths.at(-1)};
   }
-  function contourPose(path, fraction) {
-    const at = distance => {
+  function contourPoint(path, distance) {
       const d=(distance%path.total+path.total)%path.total;
       let low=0,high=path.lengths.length-1;
       while(high-low>1){const mid=(low+high)>>1;if(path.lengths[mid]<d)low=mid;else high=mid;}
       const a=path.points[low],b=path.points[high],mix=(d-path.lengths[low])/Math.max(.001,path.lengths[high]-path.lengths[low]);
       return {x:a.x+(b.x-a.x)*mix,y:a.y+(b.y-a.y)*mix};
-    };
-    const distance=fraction*path.total,p=at(distance),a=at(distance-2),b=at(distance+2);
+  }
+  function contourPose(path, fraction) {
+    const distance=fraction*path.total,p=contourPoint(path,distance),a=contourPoint(path,distance-2),b=contourPoint(path,distance+2);
     return {...p,rotation:Math.atan2(b.y-a.y,b.x-a.x)};
   }
 
   const unitCircle=Array.from({length:128},(_,i)=>({x:Math.cos(i/128*TAU),y:Math.sin(i/128*TAU)}));
+  const contactWeights=Array.from({length:17},(_,i)=>Math.exp(-((i-8)**2)/32));
+  const contactWeightSum=contactWeights.reduce((a,b)=>a+b,0);
   function clipPolygon(points,axis,boundary,greater) {
     const result=[];
     for(let i=0;i<points.length;i++){
@@ -85,21 +87,19 @@
     const closed=[...points,points[0]],lengths=[0];
     for(let i=1;i<closed.length;i++)lengths.push(lengths[i-1]+Math.hypot(closed[i].x-closed[i-1].x,closed[i].y-closed[i-1].y));
     const path={points:closed,lengths,total:lengths.at(-1)};
-    const samples=Array.from({length:128},(_,i)=>contourPose(path,i/128));
-    const weights=Array.from({length:17},(_,i)=>Math.exp(-((i-8)**2)/32));
-    const sum=weights.reduce((a,b)=>a+b,0);
+    const samples=Array.from({length:128},(_,i)=>contourPoint(path,i/128*path.total));
     return samples.map((_,i)=>{
       let x=0,y=0;
-      weights.forEach((weight,j)=>{const p=samples[(i+j-8+128)%128];x+=p.x*weight;y+=p.y*weight;});
-      return {x:x/sum,y:y/sum};
+      for(let j=0;j<17;j++){const p=samples[(i+j+120)&127],weight=contactWeights[j];x+=p.x*weight;y+=p.y*weight;}
+      return {x:x/contactWeightSum,y:y/contactWeightSum};
     });
   }
-  function contactContour(x,y,radius,pressure,width,height) {
+  function contactContour(x,y,radius,pressure,width,height,top=0,bottom=height) {
     const depth=p=>compressionDepth(p,radius);
     const cx=x-depth(pressure[0])+depth(pressure[1]),cy=y-depth(pressure[2])+depth(pressure[3]);
     const shape=r=>{
       let points=unitCircle.map(p=>({x:cx+p.x*r,y:cy+p.y*r}));
-      for(const [axis,boundary,greater] of [['x',16,true],['x',width-16,false],['y',16,true],['y',height-16,false]])points=clipPolygon(points,axis,boundary,greater);
+      for(const [axis,boundary,greater] of [['x',16,true],['x',width-16,false],['y',top+16,true],['y',bottom-16,false]])points=clipPolygon(points,axis,boundary,greater);
       return roundContact(points);
     };
     let low=radius,high=radius*3;
@@ -123,12 +123,16 @@
       this.shape = {a:radius,b:radius,n:2};
       this.displacement = new Float64Array(64);
       this.speed = new Float64Array(64);
+      this.nextSpeed = new Float64Array(64);
       this.pressure = [0, 0, 0, 0]; this.contactPressure = [0, 0, 0, 0];
       this.drag = null; this.charge = 0; this.chargeSide = -1; this.pop = false;
       this.onImpact = () => {};
       this.onCollision = () => {};
       this.contacts = [false,false,false,false];
+      this.version=0;
     }
+    get top(){return this.boundsTop??0;}
+    get bottom(){return this.boundsBottom??this.height;}
     collision(velocity) {
       if(Math.abs(velocity)<.04)return;
       this.onCollision(velocity);
@@ -156,7 +160,7 @@
         };
         const px=this.pressure[0]-this.pressure[1],py=this.pressure[2]-this.pressure[3];
         this.vx=rebound(this.vx,px,this.width-2*(this.radius+13));
-        this.vy=rebound(this.vy,py,this.height-2*(this.radius+13));
+        this.vy=rebound(this.vy,py,this.bottom-this.top-2*(this.radius+13));
         if(Math.abs(px)>.5)this.x+=Math.sign(px)*.5;
         if(Math.abs(py)>.5)this.y+=Math.sign(py)*.5;
         if(Math.max(...this.pressure)>.5)this.collision(Math.hypot(this.vx,this.vy));
@@ -174,12 +178,13 @@
       }
     }
     integrate(ms, obstacles, motion) {
+      this.version++;
       const dt = ms, f = dt / (1000 / 60), r = this.radius + 13;
       this.pressure.fill(0);
       if (this.drag) {
         const targetX = this.drag.x - this.drag.offsetX, targetY = this.drag.y - this.drag.offsetY;
-        this.pressure = [Math.max(0, r - targetX), Math.max(0, targetX + r - this.width), Math.max(0, r - targetY), Math.max(0, targetY + r - this.height)];
-        this.x = clamp(targetX, r, this.width - r); this.y = clamp(targetY, r, this.height - r);
+        this.pressure = [Math.max(0, r - targetX), Math.max(0, targetX + r - this.width), Math.max(0, this.top+r - targetY), Math.max(0, targetY + r - this.bottom)];
+        this.x = clamp(targetX, r, this.width - r); this.y = clamp(targetY, this.top+r, this.bottom-r);
         this.vx = this.drag.vx; this.vy = this.drag.vy;
         this.pressure.forEach((depth,side)=>{
           const touching=depth>.5;
@@ -194,18 +199,18 @@
         this.charge = 0;
         this.vy += GRAVITY * dt;
         this.x += this.vx * dt; this.y += this.vy * dt;
-        const walls = [this.x <= r && this.vx<0, this.x >= this.width - r && this.vx>0, this.y <= r && this.vy < 0, this.y >= this.height - r && this.vy>0];
+        const walls = [this.x <= r && this.vx<0, this.x >= this.width - r && this.vx>0, this.y <= this.top+r && this.vy < 0, this.y >= this.bottom-r && this.vy>0];
         walls.forEach((hit, side) => {
           if (!hit) return;
           const horizontal = side < 2, velocity = horizontal ? this.vx : this.vy;
           if(Math.abs(velocity)>=.04)this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
           const restitution = side===3 ? RESTITUTION*clamp(Math.abs(velocity)/.22,.35,1) : RESTITUTION;
           if (horizontal) { this.x = clamp(this.x, r, this.width - r); this.vx = -velocity * restitution; }
-          else { this.y = clamp(this.y, r, this.height - r); this.vy = side===3 && Math.abs(velocity) < .04 ? 0 : -velocity * restitution; }
+          else { this.y = clamp(this.y, this.top+r, this.bottom-r); this.vy = side===3 && Math.abs(velocity) < .04 ? 0 : -velocity * restitution; }
         });
         const damping=Math.pow(FRICTION,f);
         this.vx*=damping;this.vy*=damping;
-        const resting=this.y>=this.height-r-.75&&Math.abs(this.vx)<.03&&Math.abs(this.vy)<.03;
+        const resting=this.y>=this.bottom-r-.75&&Math.abs(this.vx)<.03&&Math.abs(this.vy)<.03;
         this.spinRate+=((resting?TAU/360000:TAU/60000)-this.spinRate)*(1-Math.exp(-dt/500));
         this.rotation+=(this.spinRate+this.spinVelocity)*dt;
         this.spinVelocity*=Math.pow(resting?.88:.991,f);
@@ -227,8 +232,8 @@
       const blend=1-Math.exp(-dt/(this.drag?65:45));
       for(let i=0;i<4;i++)this.contactPressure[i]+=(this.pressure[i]-this.contactPressure[i])*blend;
       this.shape.a=this.shape.b=this.radius;this.shape.n=2;
-      this.x=clamp(this.x,r,this.width-r);this.y=clamp(this.y,r,this.height-r);
-      const next = new Float64Array(64);
+      this.x=clamp(this.x,r,this.width-r);this.y=clamp(this.y,this.top+r,this.bottom-r);
+      const next = this.nextSpeed;
       for (let i = 0; i < 64; i++) {
         const value = this.displacement[i], a = i / 64 * TAU;
         let target = 0;
@@ -244,8 +249,11 @@
     }
     point(angle) {
       if(Math.max(...this.contactPressure)>.03){
-        const key=[this.x,this.y,this.radius,this.width,this.height,...this.contactPressure].map(n=>n.toFixed(2)).join(',');
-        if(this.contactKey!==key){this.contactKey=key;this.contactPath=contactContour(this.x,this.y,this.radius,this.contactPressure,this.width,this.height);}
+        if(this.contactVersion!==this.version){
+          this.contactVersion=this.version;
+          const key=[this.x,this.y,this.radius,this.width,this.height,this.top,this.bottom,...this.contactPressure].map(n=>n.toFixed(2)).join(',');
+          if(key!==this.contactKey){this.contactKey=key;this.contactPath=contactContour(this.x,this.y,this.radius,this.contactPressure,this.width,this.height,this.top,this.bottom);}
+        }
         const point=contourPose(this.contactPath,angle/TAU);return {x:point.x,y:point.y};
       }
       const index = ((angle / TAU % 1 + 1) % 1) * 64, i = Math.floor(index), mix = index - i;
@@ -259,7 +267,7 @@
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let width, height, ring, glyphs, last = 0, burst = null, theme = 0;
+  let width, height, ring, glyphs, last = 0, burst = null, theme = 0, boundsDirty=true, playable=true;
   let audio;
   const unlockAudio=()=>{
     const Audio=window.AudioContext || window.webkitAudioContext;
@@ -268,13 +276,30 @@
   };
   document.addEventListener('pointerdown',unlockAudio,{once:true,capture:true,passive:true});
   document.addEventListener('keydown',unlockAudio,{once:true,capture:true});
+  document.addEventListener('visibilitychange',()=>{
+    last=performance.now();
+    if(!audio)return;
+    (document.hidden?audio.suspend():audio.resume()).catch(()=>{});
+  });
   const themes = [['#000000','#ffffff'],['#163cff','#ffffff'],['#ff3b30','#ffffff'],['#d7ff00','#111111'],['#7c3aed','#ffffff'],['#00d9ff','#001018'],['#ff6a00','#ffffff'],['#ff4fa3','#19000c']];
   const font = '400 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  const updateBounds=()=>{
+    const pageTop=page.getBoundingClientRect().top;
+    ring.boundsTop=Math.max(0,-pageTop);
+    ring.boundsBottom=Math.min(height,innerHeight-pageTop);
+    playable=ring.bottom-ring.top>=2*(ring.radius+13);
+    canvas.hidden=!playable;
+    boundsDirty=false;
+  };
   const resize = () => {
-    width = page.clientWidth; height = page.clientHeight;
+    width = page.clientWidth;
+    const heroHeight=page.clientHeight,pageTop=page.getBoundingClientRect().top;
+    const mac=document.querySelector('.reference-page:first-child .reference:first-child .device.desktop');
+    height=mac ? mac.getBoundingClientRect().top-pageTop : document.querySelector('#references').getBoundingClientRect().top-pageTop;
     const dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.ceil(width * dpr); canvas.height = Math.ceil(height * dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
-    const diameter = Math.min(width - 12, height * .550469);
+    canvas.style.height=`${height}px`;
+    const diameter = Math.min(width - 12, heroHeight * .550469);
     const radius = diameter * (width <= 700 ? .3125 : .425);
     if (!ring) ring = new Ring(width, height, radius);
     else { ring.width = width; ring.height = height; ring.radius = radius; ring.x = clamp(ring.x, radius + 16, width - radius - 16); ring.y = clamp(ring.y, radius + 16, height - radius - 16); }
@@ -288,6 +313,7 @@
       document.documentElement.style.setProperty('--mac-tint', theme === 0 ? '#777a82' : themes[theme][0]);
       document.documentElement.style.setProperty('--ink', themes[theme][1]);
     };
+    updateBounds();
   };
   const local = e => { const b = canvas.getBoundingClientRect(); return { x:e.clientX-b.left, y:e.clientY-b.top }; };
   const release = e => {
@@ -297,7 +323,7 @@
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
   };
   page.addEventListener('pointerdown', e => {
-    if (burst || e.button !== 0 || e.target.closest('.scroll-cue')) return;
+    if (!playable || burst || e.button !== 0 || e.target.closest('.scroll-cue')) return;
     const p = local(e);
     if (Math.hypot(p.x - ring.x, p.y - ring.y) > ring.radius + 18) return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -330,8 +356,8 @@
   };
   const animate = now => {
     const elapsed = Math.min(1000, now-last || 16.667); last=now;
-    const bounds = page.getBoundingClientRect();
-    if (bounds.top < innerHeight && bounds.bottom > 0) {
+    if(boundsDirty)updateBounds();
+    if (playable&&!document.hidden) {
       ctx.clearRect(0,0,width,height); ctx.font=font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=themes[theme][1];
       if (burst) {
         const age=now-burst.time;
@@ -349,11 +375,14 @@
         else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation);});
       }
     }
-    hitTarget.hidden = !!burst;
-    Object.assign(hitTarget.style, {left:`${ring.x-ring.radius-18}px`,top:`${ring.y-ring.radius-18}px`,width:`${2*(ring.radius+18)}px`,height:`${2*(ring.radius+18)}px`});
+    hitTarget.hidden = !!burst||!playable;
+    if(playable)Object.assign(hitTarget.style, {left:`${ring.x-ring.radius-18}px`,top:`${ring.y-ring.radius-18}px`,width:`${2*(ring.radius+18)}px`,height:`${2*(ring.radius+18)}px`});
     requestAnimationFrame(animate);
   };
-  canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height}) };
+  canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height,top:ring.top,bottom:ring.bottom,playable}) };
   canvas.dataset.state = "intact";
+  addEventListener('scroll',()=>{boundsDirty=true;},{passive:true});
+  addEventListener('resize',resize);
+  addEventListener('portfolio-ready',resize);
   resize();new ResizeObserver(resize).observe(page);requestAnimationFrame(animate);
 })();

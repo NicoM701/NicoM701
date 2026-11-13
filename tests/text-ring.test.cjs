@@ -295,3 +295,17 @@ test('rapid bounce sounds stay bounded while every contact gets a voice', () => 
   for(let i=0;i<20;i++){bounceSound(audio,3);assert.ok(active<=4);}
   assert.equal(started,20);assert.equal(active,4);
 });
+
+test('scrolled visible top and Mac edge constrain flight and held pressure', () => {
+  const ring=new Ring(1200,1000,180);
+  ring.boundsTop=190;ring.boundsBottom=890;
+  ring.y=384;ring.vy=-1;ring.step(1000/60);
+  assert.ok(ring.vy>0);assert.ok(ring.y>=383);
+  ring.y=696;ring.vy=1;ring.step(1000/60);
+  assert.ok(ring.vy<0);assert.ok(ring.y<=697);
+  ring.drag={x:600,y:100,offsetX:0,offsetY:0,vx:0,vy:-1,time:1000};
+  for(let i=0;i<30;i++)ring.step(1000/60);
+  assert.equal(ring.y,383);assert.ok(ring.pressure[2]>0);
+  const points=Array.from({length:128},(_,i)=>ring.point(i/128*Math.PI*2));
+  assert.ok(points.every(p=>p.y>=206-1e-6));
+});
