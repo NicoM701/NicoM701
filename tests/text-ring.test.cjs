@@ -33,10 +33,10 @@ test('relieving wall pressure resets the pop timer', () => {
   assert.equal(ring.pop,false);
 });
 
-test('gravity accelerates and a floor impact rebounds at restitution .82', () => {
+test('gravity and floor restitution include the reference per-frame damping', () => {
   const ring=new Ring(1200,800,180);ring.y=600;ring.vy=.8;
   const before=ring.vy;ring.step(16.667);assert.ok(ring.vy<0);
-  assert.ok(Math.abs(ring.vy+(before+.0004*16.667)*.82)<.0001);
+  assert.ok(Math.abs(ring.vy+(before+.0004*16.667)*.94*.971)<.0001);
 });
 
 test('impact waves settle without changing average radius or separating letters', () => {
@@ -192,11 +192,65 @@ test('the fall settles without a tail of tiny bounces or color-triggering impact
   ring.onImpact=velocity=>impacts.push(Math.abs(velocity));
   for(let i=0;i<1200;i++)ring.step(1000/60);
   assert.ok(impacts.length>1&&impacts.length<=7,`too many impacts: ${impacts.length}`);
-  assert.ok(impacts.every(v=>v>.22),'tiny impacts still trigger effects');
+  assert.ok(impacts.every(v=>v>=.04),'resting contacts still trigger effects');
   for(let i=0;i<120;i++){
     ring.step(1000/60);
     assert.equal(ring.vy,0,'resting ring keeps hopping');
   }
+});
+
+test('free movement loses energy continuously instead of cutting off the last bounce', () => {
+  const ring=new Ring(1200,3000,180);ring.y=1000;ring.vx=.4;ring.vy=-.2;
+  ring.step(1000/60);
+  assert.ok(Math.abs(ring.vx-.4*.971)<1e-9);
+  assert.ok(Math.abs(ring.vy-(-.2+.0004*1000/60)*.971)<1e-9);
+  ring.y=ring.height-ring.radius-13;ring.vy=.1;
+  ring.step(1000/60);assert.ok(ring.vy<-.08,'small visible rebound was cut off');
+});
+
+test('quick contacts on separate edges each notify audio and theme once', () => {
+  const ring=new Ring(1200,800,180);let sound=0,color=0;
+  ring.onCollision=()=>sound++;ring.onImpact=()=>color++;
+  ring.drag={x:100,y:400,offsetX:0,offsetY:0,vx:-1,vy:0,time:1000};
+  ring.step(1000/60);assert.equal(sound,1);assert.equal(color,1);
+  ring.drag.y=100;ring.drag.vy=-1;ring.step(1000/60);
+  assert.equal(sound,2);assert.equal(color,2);
+  ring.step(1000/60);assert.equal(sound,2,'holding contact repeatedly triggers sounds');
+  ring.drag.x=600;ring.step(1000/60);ring.drag.x=100;ring.step(1000/60);
+  assert.equal(sound,3);assert.equal(color,3);
+});
+
+test('a shallow corner squeeze nudges while a deep squeeze launches away', () => {
+  const launch=depth=>{
+    const ring=new Ring(1200,800,180),bound=ring.radius+13;
+    ring.drag={x:bound-depth,y:800-bound+depth,offsetX:0,offsetY:0,vx:0,vy:0,time:1000};
+    for(let i=0;i<30;i++)ring.step(1000/60);
+    ring.release(1020,false);return ring;
+  };
+  const shallow=launch(20),deep=launch(100);
+  assert.ok(shallow.vx<deep.vx*.02);
+  assert.ok(deep.vx>1&&deep.vy<-.5);
+  assert.ok(Math.abs(deep.vx)>Math.abs(deep.vy),'corner launch ignores available travel distance');
+});
+
+test('drop timings match the measured reference trace including its small rebound tail', () => {
+  const ring=new Ring(1280,800,187.159375),times=[];
+  let time=0;
+  ring.onCollision=()=>times.push(time);
+  for(let i=0;i<420;i++){time+=(1000/60);ring.step(1000/60);}
+  const measured=[2266.667,3100,3600,3950,4216.667];
+  assert.equal(times.length,measured.length);
+  times.forEach((t,i)=>assert.ok(Math.abs(t-measured[i])<1000/60));
+});
+
+test('spin eases to rest instead of freezing on the last floor contact', () => {
+  const ring=new Ring(1200,800,180);ring.y=607;ring.vy=.02;
+  const before=ring.rotation;ring.step(1000/60);
+  const first=ring.rotation-before;assert.ok(first>0);
+  const next=ring.rotation;ring.step(1000/60);
+  assert.ok(ring.rotation-next>0&&ring.rotation-next<first);
+  for(let i=0;i<180;i++)ring.step(1000/60);
+  assert.ok(ring.spinRate<1e-9);
 });
 
 test('portfolio text uses German for German locales and English otherwise', () => {
@@ -226,4 +280,12 @@ test('bounce sound is a short bass tone with a hard low peak and silent edges', 
   }
   bounceSound(null,1);
   bounceSound({state:'suspended',createOscillator(){throw Error('audio must remain silent');}},1);
+});
+
+test('rapid bounce sounds stay bounded while every contact gets a voice', () => {
+  const {bounceSound}=require('../softbody.js');let active=0,started=0;
+  const param={setValueAtTime(){},linearRampToValueAtTime(v){assert.ok(v<=.002);},exponentialRampToValueAtTime(){}};
+  const audio={state:'running',currentTime:0,destination:{},createOscillator:()=>({frequency:param,connect(){},disconnect(){active--;},start(){active++;started++;},stop(){}}),createGain:()=>({gain:param,connect(){},disconnect(){}})};
+  for(let i=0;i<20;i++){bounceSound(audio,3);assert.ok(active<=4);}
+  assert.equal(started,20);assert.equal(active,4);
 });

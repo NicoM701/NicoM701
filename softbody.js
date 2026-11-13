@@ -1,6 +1,6 @@
 ﻿(function () {
   const TAU = Math.PI * 2;
-  const GRAVITY = .0004, RESTITUTION = .82;
+  const GRAVITY = .0004, RESTITUTION = .94, FRICTION = .971;
   const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
   const compressionDepth = (pressure, radius) => radius * .72 * Math.tanh(pressure / (radius * .9));
@@ -25,18 +25,23 @@
   function nextTheme(current, count, random = Math.random) {
     return (current + 1 + Math.floor(random() * (count - 1))) % count;
   }
+  const audioVoices=new WeakMap();
   function bounceSound(audio, velocity) {
     if(!audio || audio.state!=='running')return;
     const now=audio.currentTime,oscillator=audio.createOscillator(),gain=audio.createGain();
+    const voices=audioVoices.get(audio)||[];
+    if(voices.length===4){const oldest=voices[0];oldest.oscillator.stop(now);oldest.finish();}
+    const voice={oscillator,finish:()=>{const index=voices.indexOf(voice);if(index<0)return;voices.splice(index,1);oscillator.disconnect();gain.disconnect();}};
+    voices.push(voice);audioVoices.set(audio,voices);
     oscillator.type='sine';
     oscillator.frequency.setValueAtTime(108,now);
     oscillator.frequency.exponentialRampToValueAtTime(54,now+.12);
     gain.gain.setValueAtTime(0,now);
-    gain.gain.linearRampToValueAtTime(.008*clamp(Math.abs(velocity),.25,1),now+.006);
+    gain.gain.linearRampToValueAtTime(.002*clamp(Math.abs(velocity),.25,1),now+.006);
     gain.gain.exponentialRampToValueAtTime(.00001,now+.12);
     gain.gain.linearRampToValueAtTime(0,now+.13);
     oscillator.connect(gain);gain.connect(audio.destination);
-    oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+    oscillator.onended=voice.finish;
     oscillator.start(now);oscillator.stop(now+.14);
   }
   function shapePoint(a, b, n, angle) {
@@ -113,20 +118,28 @@
       this.width = width; this.height = height; this.radius = radius;
       this.x = width / 2; this.y = radius + 20;
       this.vx = 0; this.vy = 0; this.rotation = Math.PI;
+      this.spinVelocity = 0; this.spinRate = TAU / 60000;
       this.shape = {a:radius,b:radius,n:2};
       this.displacement = new Float64Array(64);
       this.speed = new Float64Array(64);
       this.pressure = [0, 0, 0, 0]; this.contactPressure = [0, 0, 0, 0];
       this.drag = null; this.charge = 0; this.chargeSide = -1; this.pop = false;
       this.onImpact = () => {};
+      this.onCollision = () => {};
+      this.contacts = [false,false,false,false];
+    }
+    collision(velocity) {
+      if(Math.abs(velocity)<.04)return;
+      this.onCollision(velocity);
+      this.onImpact(velocity);
     }
     impulse(angle, velocity) {
-      const depth = Math.min(this.radius * .08, Math.abs(velocity) * this.radius * .04) * .9;
+      const depth = Math.min(this.radius * .24, Math.max(0,Math.abs(velocity)-.025) * this.radius * .075) * .9;
       for (let i = 0; i < 64; i++) {
         const distance = Math.abs(wrap(i / 64 * TAU - angle));
         this.speed[i] += depth * (-.34 * Math.exp(-distance * distance / .22) + .075 * Math.exp(-((distance - Math.PI / 2) ** 2) / .42));
       }
-      if (Math.abs(velocity) > .22) this.onImpact(velocity);
+      this.collision(velocity);
     }
     release(time, cancelled) {
       if (!this.drag) return;
@@ -134,17 +147,22 @@
       this.vx = fresh ? this.drag.vx : 0;
       this.vy = fresh ? this.drag.vy : 0;
       if(!cancelled){
-        const compression=this.contactPressure.map(p=>compressionDepth(p,this.radius));
-        const spring=Math.sqrt(8*GRAVITY/this.radius)*RESTITUTION;
-        const rebound=(velocity,depth)=>{
-          if(Math.abs(depth)<.01)return velocity;
-          const direction=Math.sign(depth),away=velocity*direction;
-          return direction*Math.hypot(Math.max(0,away),Math.min(0,away)*RESTITUTION,depth*spring);
+        const rebound=(velocity,pressure,distance)=>{
+          if(Math.abs(pressure)<=.5)return velocity;
+          const strength=clamp(Math.abs(pressure)/Math.max(30,this.radius*.51),0,1);
+          const launch=(.7875+distance*.00525+Math.sqrt(2*GRAVITY*distance)*1.75)*strength**4;
+          return Math.sign(pressure)*launch;
         };
-        this.vx=rebound(this.vx,compression[0]-compression[1]);
-        this.vy=rebound(this.vy,compression[2]-compression[3]);
+        const px=this.pressure[0]-this.pressure[1],py=this.pressure[2]-this.pressure[3];
+        this.vx=rebound(this.vx,px,this.width-2*(this.radius+13));
+        this.vy=rebound(this.vy,py,this.height-2*(this.radius+13));
+        if(Math.abs(px)>.5)this.x+=Math.sign(px)*.5;
+        if(Math.abs(py)>.5)this.y+=Math.sign(py)*.5;
+        if(Math.max(...this.pressure)>.5)this.collision(Math.hypot(this.vx,this.vy));
+        this.spinVelocity=clamp(((this.drag.offsetX||0)*this.vy-(this.drag.offsetY||0)*this.vx)/this.radius**2*.9,-.008,.008);
       }
       this.drag = null; this.charge = 0; this.chargeSide = -1;
+      this.contacts.fill(false);
     }
     step(ms, obstacles = [], motion = true) {
       let remaining = Math.min(ms, 1000);
@@ -162,6 +180,11 @@
         this.pressure = [Math.max(0, r - targetX), Math.max(0, targetX + r - this.width), Math.max(0, r - targetY), Math.max(0, targetY + r - this.height)];
         this.x = clamp(targetX, r, this.width - r); this.y = clamp(targetY, r, this.height - r);
         this.vx = this.drag.vx; this.vy = this.drag.vy;
+        this.pressure.forEach((depth,side)=>{
+          const touching=depth>.5;
+          if(touching&&!this.contacts[side])this.impulse([Math.PI,0,-Math.PI/2,Math.PI/2][side],side<2?this.vx:this.vy);
+          this.contacts[side]=touching;
+        });
         const pressure = Math.max(...this.pressure), side = this.pressure.indexOf(pressure);
         if (pressure < Math.max(30, this.radius * .51)) { this.charge = 0; this.chargeSide = -1; }
         else { this.charge = this.chargeSide === side ? this.charge + dt : dt; this.chargeSide = side; }
@@ -170,17 +193,21 @@
         this.charge = 0;
         this.vy += GRAVITY * dt;
         this.x += this.vx * dt; this.y += this.vy * dt;
-        const walls = [this.x < r, this.x > this.width - r, this.y < r && this.vy < 0, this.y > this.height - r];
+        const walls = [this.x <= r && this.vx<0, this.x >= this.width - r && this.vx>0, this.y <= r && this.vy < 0, this.y >= this.height - r && this.vy>0];
         walls.forEach((hit, side) => {
           if (!hit) return;
           const horizontal = side < 2, velocity = horizontal ? this.vx : this.vy;
-          if(Math.abs(velocity)>.18)this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
+          if(Math.abs(velocity)>=.04)this.impulse([Math.PI, 0, -Math.PI / 2, Math.PI / 2][side], velocity);
           const restitution = RESTITUTION;
           if (horizontal) { this.x = clamp(this.x, r, this.width - r); this.vx = -velocity * restitution; }
-          else { this.y = clamp(this.y, r, this.height - r); this.vy = Math.abs(velocity) < .18 ? 0 : -velocity * restitution; this.vx *= .92; }
+          else { this.y = clamp(this.y, r, this.height - r); this.vy = side===3 && Math.abs(velocity) < .04 ? 0 : -velocity * restitution; }
         });
-        this.vx *= Math.pow(.999, f);
-        if (Math.abs(this.vx) + Math.abs(this.vy) > .015) this.rotation += TAU * dt / 60000;
+        const damping=Math.pow(FRICTION,f);
+        this.vx*=damping;this.vy*=damping;
+        const resting=this.y>=this.height-r-.75&&Math.abs(this.vx)<.03&&Math.abs(this.vy)<.03;
+        this.spinRate+=((resting?0:TAU/60000)-this.spinRate)*(1-Math.exp(-dt/160));
+        this.rotation+=(this.spinRate+this.spinVelocity)*dt;
+        this.spinVelocity*=Math.pow(resting?.88:.991,f);
       }
       for (const box of obstacles) {
         const nearestX = clamp(this.x, box.x, box.x + box.w), nearestY = clamp(this.y, box.y, box.y + box.h);
@@ -193,10 +220,10 @@
           this.pressure[side] = Math.max(this.pressure[side], r - distance);
         } else {
           this.x += dx * (r - distance); this.y += dy * (r - distance);
-          if (impact < 0) { this.vx -= 1.94 * impact * dx; this.vy -= 1.94 * impact * dy; this.impulse(Math.atan2(-dy, -dx), impact); }
+          if (impact < 0) { this.vx -= (1+RESTITUTION) * impact * dx; this.vy -= (1+RESTITUTION) * impact * dy; this.impulse(Math.atan2(-dy, -dx), impact); }
         }
       }
-      const blend=1-Math.exp(-dt/(this.drag?65:120));
+      const blend=1-Math.exp(-dt/(this.drag?65:45));
       for(let i=0;i<4;i++)this.contactPressure[i]+=(this.pressure[i]-this.contactPressure[i])*blend;
       this.shape.a=this.shape.b=this.radius;this.shape.n=2;
       this.x=clamp(this.x,r,this.width-r);this.y=clamp(this.y,r,this.height-r);
@@ -231,7 +258,7 @@
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let width, height, ring, glyphs, last = 0, burst = null, theme = 0, impactTime = 0;
+  let width, height, ring, glyphs, last = 0, burst = null, theme = 0;
   let audio;
   const unlockAudio=()=>{
     const Audio=window.AudioContext || window.webkitAudioContext;
@@ -252,11 +279,10 @@
     else { ring.width = width; ring.height = height; ring.radius = radius; ring.x = clamp(ring.x, radius + 16, width - radius - 16); ring.y = clamp(ring.y, radius + 16, height - radius - 16); }
     ctx.font = font;
     glyphs = typeset(window.PORTFOLIO.text, c => ctx.measureText(c).width, radius, 26);
-    ring.onImpact = velocity => {
-      const now = performance.now();
-      if (reduced.matches || now - impactTime < 250) return;
-      impactTime = now; theme = nextTheme(theme, themes.length);
-      if(!document.hidden)bounceSound(audio,velocity);
+    ring.onCollision=velocity=>{if(!document.hidden)bounceSound(audio,velocity);};
+    ring.onImpact = () => {
+      if (reduced.matches) return;
+      theme = nextTheme(theme, themes.length);
       document.documentElement.style.setProperty('--bg', themes[theme][0]);
       document.documentElement.style.setProperty('--mac-tint', theme === 0 ? '#777a82' : themes[theme][0]);
       document.documentElement.style.setProperty('--ink', themes[theme][1]);
@@ -275,6 +301,7 @@
     if (Math.hypot(p.x - ring.x, p.y - ring.y) > ring.radius + 18) return;
     e.preventDefault(); e.stopImmediatePropagation();
     ring.drag = {id:e.pointerId, ...p, offsetX:p.x-ring.x, offsetY:p.y-ring.y, time:performance.now(), vx:0, vy:0};
+    ring.spinVelocity=0;ring.contacts.fill(false);
     canvas.setPointerCapture(e.pointerId); canvas.dataset.dragging = 'true'; hitTarget.dataset.dragging = 'true';
   }, true);
   canvas.addEventListener('pointermove', e => {

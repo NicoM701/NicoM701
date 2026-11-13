@@ -1,0 +1,1 @@
+Official T3 Code Nightly app icon, extracted unchanged from apps/desktop/prod-resources/icon.ico in the installed T3 Code Nightly app.asar. Largest embedded image: 256 x 256 RGBA PNG. No taskbar background or selection decoration.
