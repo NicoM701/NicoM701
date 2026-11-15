@@ -4,7 +4,7 @@
   const SQUEEZE_GRAVITY = .0004;
   const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
-  const compressionDepth = (pressure, radius) => radius * .72 * Math.tanh(pressure / (radius * .9));
+  const compressionDepth = (pressure, radius) => { const limit = radius * 1.4; return limit * Math.tanh(pressure * 1.25 / limit) * .9; };
 
   function typeset(text, measure, radius, fontSize) {
     const letters = Array.from(text);

@@ -361,3 +361,22 @@ test('deep held corner compression leaves time to release and fling', () => {
   for(let i=0;i<90;i++)held.step(10);
   assert.equal(held.pop,true);
 });
+
+test('held wall contact flattens as deeply as the reference squish curve without changing bounce', () => {
+  const R = 160, r = R + 13;
+  const widthAt = depth => {
+    const ring = new Ring(1200, 700, R);
+    ring.x = 600; ring.y = 350;
+    ring.drag = {x: r - depth * R, y: 350, offsetX: 0, offsetY: 0, vx: 0, vy: 0, time: 0};
+    for (let i = 0; i < 60; i++) ring.step(1000 / 60);
+    const xs = Array.from({length: 128}, (_, i) => ring.point(i / 128 * Math.PI * 2).x);
+    return Math.max(...xs) - Math.min(...xs);
+  };
+  // Reference: 1.4R * tanh(1.25p / 1.4R) * .9 squeezes the ring clearly more than the old .72R curve.
+  assert.ok(widthAt(.51) < 265, 'ring is not squishy enough at the pop depth');
+  assert.ok(widthAt(.51) < widthAt(.25) && widthAt(.25) < widthAt(.1));
+  // Free-flight bounce is untouched.
+  const ring = new Ring(1200, 800, 180);
+  ring.y = 800 - 193; ring.vy = .5; ring.step(1000 / 60);
+  assert.ok(Math.abs(ring.vy + .5 * .94 * Math.pow(.99, 1)) < .05);
+});
