@@ -24,11 +24,14 @@ test('scrolling past the hero keeps the ring bouncing and changing the Mac tint'
  b.tick(0);
  const before=b.canvas.textRing.getState();
  assert.equal(before.bottom,800,'the floor meets the starting viewport edge');
+ b.scroll(45);
+ b.tick(16);
+ assert.equal(b.canvas.textRing.getState().bottom,845);
  b.scroll(1000);
- for(let time=16;time<=2400;time+=16)b.tick(time);
+ for(let time=32;time<=2400;time+=16)b.tick(time);
  const after=b.canvas.textRing.getState();
  assert.equal(after.top,before.top);
- assert.equal(after.bottom,before.bottom);
+ assert.equal(after.bottom,890,'the floor stops at the first Mac');
  assert.notEqual(after.y,before.y);
  assert.equal(after.playable,false);
  assert.equal(b.canvas.dataset.state,'intact');
@@ -36,6 +39,7 @@ test('scrolling past the hero keeps the ring bouncing and changing the Mac tint'
  assert.ok(b.colors.length>0);
  b.scroll(0);
  b.tick(2416);
+ assert.equal(b.canvas.textRing.getState().bottom,800);
  assert.equal(b.canvas.textRing.getState().playable,true);
  assert.equal(b.canvas.dataset.state,'intact');
 });

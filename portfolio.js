@@ -95,6 +95,7 @@
       device.append(screen,image); group.append(device);
       new ResizeObserver(resize).observe(screen);
     });
+    dispatchEvent(new Event('portfolio-ready'));
   });
 
   const cues = [...document.querySelectorAll('.scroll-cue')];

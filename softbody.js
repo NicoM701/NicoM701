@@ -274,7 +274,7 @@
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let width, height, ring, glyphs, last = 0, burst = null, theme = 0;
+  let width, height, heroFloor, ring, glyphs, last = 0, burst = null, theme = 0;
   let burstCanvas,burstContext;
   let audio;
   const unlockAudio=()=>{
@@ -294,7 +294,10 @@
   const resize = () => {
     width = page.clientWidth;
     const heroHeight = page.clientHeight;
-    height = Math.min(heroHeight, innerHeight);
+    heroFloor = Math.min(heroHeight, innerHeight);
+    const mac = document.querySelector('.reference-page:first-child .reference:first-child .device.desktop');
+    const pageTop = page.getBoundingClientRect().top;
+    height = mac ? Math.max(heroFloor, mac.getBoundingClientRect().top - pageTop) : heroFloor;
     const dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.ceil(width * dpr); canvas.height = Math.ceil(height * dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
     canvas.style.height=`${height}px`;
@@ -360,6 +363,8 @@
   };
   const animate = now => {
     const elapsed = Math.min(1000, now-last || 16.667); last=now;
+    const pageTop = page.getBoundingClientRect().top;
+    ring.boundsBottom = Math.min(height, heroFloor + Math.max(0, -pageTop));
     if(ring.pop&&!burst)explode(now);
     if (!document.hidden) {
       ctx.clearRect(0,0,width,height); ctx.font=font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=themes[theme][1];
@@ -380,12 +385,13 @@
         else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation);});
       }
     }
-    hitTarget.hidden = !!burst || ring.y + page.getBoundingClientRect().top + ring.radius + 18 <= 0;
+    hitTarget.hidden = !!burst || ring.y + pageTop + ring.radius + 18 <= 0;
     if(!hitTarget.hidden)Object.assign(hitTarget.style, {left:`${ring.x-ring.radius-18}px`,top:`${ring.y-ring.radius-18}px`,width:`${2*(ring.radius+18)}px`,height:`${2*(ring.radius+18)}px`});
     requestAnimationFrame(animate);
   };
   canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height,top:ring.top,bottom:ring.bottom,playable:!hitTarget.hidden}) };
   canvas.dataset.state = "intact";
   addEventListener('resize',resize);
+  addEventListener('portfolio-ready',resize);
   resize();new ResizeObserver(resize).observe(page);requestAnimationFrame(animate);
 })();
