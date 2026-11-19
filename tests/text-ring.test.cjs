@@ -88,11 +88,11 @@ test('holding a resting ring in empty space leaves its contour circular', () => 
   }
 });
 
-test('the ball has its own playground before mockups, outside the collage', () => {
+test('the hero places the collage behind the ball and before the mockups', () => {
   const html=require('node:fs').readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
-  const playground=html.indexOf('id="ball-playground"'),references=html.indexOf('id="references"'),collage=html.indexOf('<main');
+  const playground=html.indexOf('id="ball-playground"'),references=html.indexOf('id="references"'),collage=html.indexOf('id="moodboard"');
   const ball=html.indexOf('<canvas id="softbody"');
-  assert.ok(playground>0 && playground<ball && ball<references && references<collage);
+  assert.ok(playground>0 && playground<collage && collage<ball && ball<references);
 });
 
 test('slow rendering still advances a full second of physics', () => {

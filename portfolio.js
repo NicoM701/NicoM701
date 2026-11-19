@@ -1,15 +1,19 @@
 ﻿(() => {
   const collage=document.querySelector('#moodboard');
-  const loadCollage=()=>{
-    collage.querySelectorAll('[data-src]').forEach(media=>{media.loading='eager';media.src=media.dataset.src;delete media.dataset.src;});
-  };
-  addEventListener('scroll',loadCollage,{once:true,passive:true});
-  setTimeout(loadCollage,700);
   const collageObserver=new IntersectionObserver(entries=>{
     const visible=entries.some(entry=>entry.isIntersecting);
-    if(visible)loadCollage();
-    collage.querySelectorAll('video').forEach(video=>{if(visible)video.play().catch(()=>{});else video.pause();});
-  },{rootMargin:'300px'});
+    collage.querySelectorAll('video').forEach(video=>{
+      if (!visible) {
+        video.pause();
+        return;
+      }
+      if (video.dataset.src) {
+        video.src=video.dataset.src;
+        delete video.dataset.src;
+      }
+      video.play().catch(()=>{});
+    });
+  });
   collageObserver.observe(collage);
   const root = document.querySelector('#references');
   const count = Math.ceil(window.PORTFOLIO.references.length / 2);
@@ -19,9 +23,10 @@
     page.setAttribute('aria-label', `Website-Referenzen ${index*2+1} und ${index*2+2}`);
     const grid = document.createElement('div'); grid.className = 'reference-grid';
     const cue = document.createElement('a'); cue.className = 'scroll-cue';
-    cue.href = index+1<count ? `#reference-page-${index+2}` : '#about';
-    cue.setAttribute('aria-label', index+1<count ? 'Zu den n?chsten Website-Referenzen' : 'Zur Collage');
+    cue.href = index+1<count ? `#reference-page-${index+2}` : '#ball-playground';
+    cue.setAttribute('aria-label', index+1<count ? 'Zu den n?chsten Website-Referenzen' : 'Zur?ck zur Collage');
     cue.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>';
+    if (index+1 === count) cue.classList.add('scroll-cue-up');
     page.append(grid,cue); root.append(page); return grid;
   });
   window.PORTFOLIO.references.forEach(async (reference, index) => {
@@ -59,9 +64,10 @@
           slice.className = 'capture-slice';
           slice.style.aspectRatio = `${capture.width} / ${tile.height}`;
           const shot = new Image();
-          shot.src = tile.src;
           shot.alt = i === 0 ? 'Minenachten 2026' : '';
-          shot.loading = i < 2 ? 'eager' : 'lazy';
+          shot.loading = 'lazy';
+          shot.fetchPriority = 'low';
+          shot.src = tile.src;
           shot.draggable = false;
           shot.style.top = `${-tile.cropTop / tile.height * 100}%`;
           slice.append(shot); screen.append(slice);

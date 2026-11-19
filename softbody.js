@@ -274,7 +274,7 @@
   const canvas = document.querySelector('#softbody'), ctx = canvas.getContext('2d');
   const hitTarget = document.querySelector('#ball-hit-target');
   const page = canvas.parentElement, reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let width, height, ring, glyphs, last = 0, burst = null, theme = 0, boundsDirty=true, playable=true, returnReset=false;
+  let width, height, ring, glyphs, last = 0, burst = null, theme = 0;
   let burstCanvas,burstContext;
   let audio;
   const unlockAudio=()=>{
@@ -291,20 +291,6 @@
   });
   const themes = [['#000000','#ffffff'],['#163cff','#ffffff'],['#ff3b30','#ffffff'],['#d7ff00','#111111'],['#7c3aed','#ffffff'],['#00d9ff','#001018'],['#ff6a00','#ffffff'],['#ff4fa3','#19000c']];
   const font = '400 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
-  const updateBounds=()=>{
-    const pageTop=page.getBoundingClientRect().top;
-    if(returnReset&&pageTop>=-1){
-      returnReset=false;
-      if(ring.pop||burst){ring=null;burst=null;if(burstCanvas)burstCanvas.hidden=true;resize();canvas.dataset.state='intact';return;}
-    }
-    ring.boundsTop=Math.max(0,-pageTop);
-    ring.boundsBottom=Math.min(height,innerHeight-pageTop);
-    playable=ring.bottom-ring.top>1;
-    if(ring.bottom-ring.top<2*(ring.radius+13))returnReset=true;
-    if(returnReset&&ring.bottom-ring.top<=32)ring.pop=true;
-    canvas.hidden=!playable;
-    boundsDirty=false;
-  };
   const resize = () => {
     width = page.clientWidth;
     const heroHeight=page.clientHeight,pageTop=page.getBoundingClientRect().top;
@@ -327,7 +313,6 @@
       document.documentElement.style.setProperty('--mac-tint', theme === 0 ? '#777a82' : themes[theme][0]);
       document.documentElement.style.setProperty('--ink', themes[theme][1]);
     };
-    updateBounds();
   };
   const local = e => { const b = canvas.getBoundingClientRect(); return { x:e.clientX-b.left, y:e.clientY-b.top }; };
   const release = e => {
@@ -337,7 +322,7 @@
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
   };
   page.addEventListener('pointerdown', e => {
-    if (!playable || burst || e.button !== 0 || e.target.closest('.scroll-cue')) return;
+    if (burst || hitTarget.hidden || e.button !== 0 || e.target.closest('.scroll-cue')) return;
     const p = local(e);
     if (Math.hypot(p.x - ring.x, p.y - ring.y) > ring.radius + 18) return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -352,7 +337,7 @@
     Object.assign(d, p, {time:now});
   });
   ['pointerup','pointercancel','lostpointercapture'].forEach(type => canvas.addEventListener(type, e => { release(e); delete canvas.dataset.dragging; }));
-  canvas.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); ring = null; burst = null; resize(); canvas.dataset.state = 'intact'; } });
+  canvas.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); ring = null; burst = null; if (burstCanvas) burstCanvas.hidden = true; resize(); canvas.dataset.state = 'intact'; } });
   let contour;
   const pose = angle => contourPose(contour || sampleContour(a=>ring.point(a)),angle/TAU);
   const explode = now => {
@@ -376,9 +361,8 @@
   };
   const animate = now => {
     const elapsed = Math.min(1000, now-last || 16.667); last=now;
-    if(boundsDirty)updateBounds();
     if(ring.pop&&!burst)explode(now);
-    if ((playable||burst)&&!document.hidden) {
+    if (!document.hidden) {
       ctx.clearRect(0,0,width,height); ctx.font=font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=themes[theme][1];
       if (burst) {
         const age=now-burst.time;
@@ -389,7 +373,7 @@
           const mid=p.word[Math.floor(p.word.length/2)].angle;
           p.word.forEach(g=>{const advance=(g.angle-mid)*ring.radius;drawGlyph(g,p.x+Math.cos(p.rotation)*advance,p.y+Math.sin(p.rotation)*advance,p.rotation,burstContext);});
         });ctx.globalAlpha=1;
-        if(age>2000){burstCanvas.hidden=true;if(!returnReset){ring=null;burst=null;resize();canvas.dataset.state="intact";}}
+        if(age>2000){burstCanvas.hidden=true;ring=null;burst=null;resize();canvas.dataset.state="intact";}
       } else {
         ring.step(elapsed,[],!reduced.matches);
         contour=sampleContour(a=>ring.point(a));
@@ -397,13 +381,12 @@
         else glyphs.forEach(g=>{const p=pose(g.angle+ring.rotation);drawGlyph(g,p.x,p.y,p.rotation);});
       }
     }
-    hitTarget.hidden = !!burst||!playable;
-    if(playable)Object.assign(hitTarget.style, {left:`${ring.x-ring.radius-18}px`,top:`${ring.y-ring.radius-18}px`,width:`${2*(ring.radius+18)}px`,height:`${2*(ring.radius+18)}px`});
+    hitTarget.hidden = !!burst || ring.y + page.getBoundingClientRect().top + ring.radius + 18 <= 0;
+    if(!hitTarget.hidden)Object.assign(hitTarget.style, {left:`${ring.x-ring.radius-18}px`,top:`${ring.y-ring.radius-18}px`,width:`${2*(ring.radius+18)}px`,height:`${2*(ring.radius+18)}px`});
     requestAnimationFrame(animate);
   };
-  canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height,top:ring.top,bottom:ring.bottom,playable}) };
+  canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height,top:ring.top,bottom:ring.bottom,playable:!hitTarget.hidden}) };
   canvas.dataset.state = "intact";
-  addEventListener('scroll',()=>{boundsDirty=true;},{passive:true});
   addEventListener('resize',resize);
   addEventListener('portfolio-ready',resize);
   resize();new ResizeObserver(resize).observe(page);requestAnimationFrame(animate);
