@@ -293,9 +293,8 @@
   const font = '400 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
   const resize = () => {
     width = page.clientWidth;
-    const heroHeight=page.clientHeight,pageTop=page.getBoundingClientRect().top;
-    const mac=document.querySelector('.reference-page:first-child .reference:first-child .device.desktop');
-    height=mac ? mac.getBoundingClientRect().top-pageTop : document.querySelector('#references').getBoundingClientRect().top-pageTop;
+    const heroHeight = page.clientHeight;
+    height = Math.min(heroHeight, innerHeight);
     const dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.ceil(width * dpr); canvas.height = Math.ceil(height * dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
     canvas.style.height=`${height}px`;
@@ -388,6 +387,5 @@
   canvas.textRing = { getState: () => ({x:ring.x,y:ring.y,vx:ring.vx,vy:ring.vy,radius:ring.radius,held:!!ring.drag,deformation:Math.max(...ring.displacement.map(Math.abs)),shape:{...ring.shape},pressure:[...ring.contactPressure],width,height,top:ring.top,bottom:ring.bottom,playable:!hitTarget.hidden}) };
   canvas.dataset.state = "intact";
   addEventListener('resize',resize);
-  addEventListener('portfolio-ready',resize);
   resize();new ResizeObserver(resize).observe(page);requestAnimationFrame(animate);
 })();

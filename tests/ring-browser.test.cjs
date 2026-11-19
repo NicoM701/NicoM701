@@ -23,6 +23,7 @@ test('scrolling past the hero keeps the ring bouncing and changing the Mac tint'
  const b=browser(source);
  b.tick(0);
  const before=b.canvas.textRing.getState();
+ assert.equal(before.bottom,800,'the floor meets the starting viewport edge');
  b.scroll(1000);
  for(let time=16;time<=2400;time+=16)b.tick(time);
  const after=b.canvas.textRing.getState();
@@ -37,4 +38,31 @@ test('scrolling past the hero keeps the ring bouncing and changing the Mac tint'
  b.tick(2416);
  assert.equal(b.canvas.textRing.getState().playable,true);
  assert.equal(b.canvas.dataset.state,'intact');
+});
+
+test('collage waits for both the slow image and the video poster before revealing',async()=>{
+ let reveal=false, finishImage, finishPoster;
+ const slowImage = new Promise(resolve=>{finishImage=resolve;});
+ const slowPoster = new Promise(resolve=>{finishPoster=resolve;});
+ const video={poster:'poster.webp'};
+ const collage={
+  querySelector:()=>video,
+  querySelectorAll:selector=>selector==='img' ? [{decode:()=>Promise.resolve()},{decode:()=>slowImage}] : [video],
+  classList:{add:name=>{if(name==='media-ready')reveal=true;}}
+ };
+ const document={
+  querySelector:selector=>selector==='#moodboard'?collage:{},
+  querySelectorAll:()=>[]
+ };
+ const env={document,Image:class{decode(){return slowPoster;}},window:{PORTFOLIO:{references:[]}},
+  IntersectionObserver:class{observe(){}},ResizeObserver:class{observe(){}},addEventListener(){}};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../portfolio.js'),'utf8'),env);
+ await new Promise(setImmediate);
+ assert.equal(reveal,false);
+ finishImage();
+ await new Promise(setImmediate);
+ assert.equal(reveal,false);
+ finishPoster();
+ await new Promise(setImmediate);
+ assert.equal(reveal,true);
 });

@@ -14,7 +14,13 @@
       video.play().catch(()=>{});
     });
   });
-  collageObserver.observe(collage);
+  const poster = new Image();
+  poster.src = collage.querySelector('video').poster;
+  const images = [...collage.querySelectorAll('img'), poster];
+  Promise.allSettled(images.map(image => image.decode())).then(() => {
+    collage.classList.add('media-ready');
+    collageObserver.observe(collage);
+  });
   const root = document.querySelector('#references');
   const count = Math.ceil(window.PORTFOLIO.references.length / 2);
   const grids = Array.from({length:count}, (_, index) => {
@@ -89,7 +95,6 @@
       device.append(screen,image); group.append(device);
       new ResizeObserver(resize).observe(screen);
     });
-    dispatchEvent(new Event('portfolio-ready'));
   });
 
   const cues = [...document.querySelectorAll('.scroll-cue')];
